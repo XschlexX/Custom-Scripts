@@ -379,8 +379,7 @@
                 showToast('Auto-Ablauf wird abgebrochen...');
                 stopRequested = true;
                 btn.textContent = 'Stoppt...';
-                btn.style.backgroundColor = '#999';
-                btn.style.cursor = 'not-allowed';
+                btn.classList.add('lea-btn-disabled');
             });
 
             document.body.appendChild(btn);
@@ -393,8 +392,11 @@
             const inner = btn.querySelector('div');
             if (inner) {
                 inner.textContent = running ? 'STOP' : 'Auto\nStart';
-                btn.style.backgroundColor = running ? '#F44336' : ''; // Rot wenn es läuft
-                btn.style.color = running ? 'white' : '';
+                if (running) {
+                    btn.classList.add('lea-btn-running');
+                } else {
+                    btn.classList.remove('lea-btn-running');
+                }
             }
         }
 

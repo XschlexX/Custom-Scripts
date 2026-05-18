@@ -77,29 +77,19 @@
         if (!isBuildingOverviewOpen()) return;
 
         const buildings = Array.from(document.querySelectorAll(BUILDING_CARD_SELECTOR));
-        const hasAnyFilterActive = Object.values(activeFilters).some(v => v);
+        const activeCount = Object.values(activeFilters).filter(v => v).length;
 
         for (let i = 0; i < buildings.length; i++) {
             const building = buildings[i];
 
-            if (!hasAnyFilterActive) {
-                // Wenn kein Filter aktiv, zeige alle normal an
-                building.style.opacity = '';
-                building.style.pointerEvents = '';
-                building.style.filter = '';
-                building.style.boxShadow = 'none';
-            } else if (matchesFilter(building)) {
-                // Gebäude erfüllt Filter -> Hervorheben
-                building.style.opacity = '1';
-                building.style.pointerEvents = 'auto';
-                building.style.filter = 'none';
-                building.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.8)';
-            } else {
-                // Gebäude erfüllt Filter nicht -> "Ghosting"
-                building.style.opacity = '0.15';
-                building.style.pointerEvents = 'none';
-                building.style.filter = 'grayscale(100%)';
-                building.style.boxShadow = 'none';
+            building.classList.remove('lea-building-active-match', 'lea-building-dimmed');
+
+            if (activeCount > 0) {
+                if (matchesFilter(building)) {
+                    building.classList.add('lea-building-active-match');
+                } else {
+                    building.classList.add('lea-building-dimmed');
+                }
             }
         }
     }
@@ -144,7 +134,7 @@
         // Sicherstellen, dass das Elternelement als Positionierungs-Anker dient
         const computedStyle = window.getComputedStyle(parent);
         if (computedStyle.position === 'static') {
-            parent.style.position = 'relative';
+            parent.classList.add('lea-relative-parent');
         }
 
         const btn = document.createElement('button');
@@ -280,14 +270,12 @@
         if (!buildingTypeDiv) return;
 
         // Container zu Flexbox machen, damit die Buttons nebeneinander liegen
-        buildingTypeDiv.style.display = 'flex';
-        buildingTypeDiv.style.alignItems = 'center';
-        buildingTypeDiv.style.gap = '8px';
+        buildingTypeDiv.classList.add('lea-flex-row');
 
         // Wrapper-Container für Button und Dropdown
         const container = document.createElement('div');
         container.id = INJECT_BTN_ID;
-        container.style.position = 'relative';
+        container.className = 'lea-filter-container';
 
         // Haupt-Button-Element erstellen
         const btn = document.createElement('button');
@@ -316,8 +304,7 @@
         // Pfeil-Icon hinzufügen für Dropdown-Indikator
         const arrow = document.createElement('span');
         arrow.textContent = ' ▼';
-        arrow.style.fontSize = '9px';
-        arrow.style.marginLeft = '4px';
+        arrow.className = 'lea-dropdown-arrow';
         inner.appendChild(arrow);
 
         btn.appendChild(inner);
@@ -326,26 +313,14 @@
         // Dropdown-Menü erstellen (mit Game-Styling)
         const dropdown = document.createElement('div');
         dropdown.style.display = isDropdownOpen ? 'block' : 'none';
-        dropdown.style.position = 'absolute';
-        dropdown.style.top = '100%';
-        dropdown.style.left = '0'; // Links-bündig zum Button
-        dropdown.style.marginTop = '4px';
-        dropdown.style.zIndex = '1001';
-        dropdown.style.minWidth = '260px'; // Etwas breiter für die Toggle-Switches
-
-        // Klassen vom Original-Dropdown (blaue Box)
-        dropdown.className = 'p-popover p-component bb-filter-popover rounded-lg border-1 border-content-box-outline bg-container-bg-b bg-(image:--background-gradient-card-info) shadow-(--shadow-generic)';
+        dropdown.className = 'lea-filter-dropdown p-popover p-component bb-filter-popover rounded-lg border-1 border-content-box-outline bg-container-bg-b bg-(image:--background-gradient-card-info) shadow-(--shadow-generic)';
 
         dropdown.addEventListener('click', (e) => {
             e.stopPropagation(); // Verhindert Schließen beim Klick ins Menü
         });
 
         const dropdownContent = document.createElement('div');
-        dropdownContent.className = 'p-popover-content flex flex-col gap-md p-md';
-        // Fallback-Padding/Gap falls die Tailwind-Klassen hier nicht komplett greifen:
-        dropdownContent.style.padding = '12px';
-        dropdownContent.style.gap = '12px';
-        dropdownContent.style.color = 'white'; // Sichert weiße Schrift ab
+        dropdownContent.className = 'p-popover-content flex flex-col gap-md p-md lea-filter-dropdown-content';
 
         // --- Hilfsfunktion für Filter-Items ---
         function createFilterItem(id, labelText, emojiIcon, isActive, onClick) {

@@ -130,3 +130,80 @@
     border-radius: 4px !important;
     cursor: pointer !important;
 }
+
+/* Custom Building Filter Container, Dropdown & Content */
+.lea-filter-container {
+    position: relative !important;
+}
+
+.lea-dropdown-arrow {
+    font-size: 9px !important;
+    margin-left: 4px !important;
+}
+
+.lea-filter-dropdown {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    margin-top: 4px !important;
+    z-index: 1001 !important;
+    min-width: 260px !important;
+}
+
+.lea-filter-dropdown-content {
+    padding: 12px !important;
+    gap: 12px !important;
+    color: white !important;
+}
+
+/* Building Filters - Highlight & Dim states */
+.lea-building-active-match {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    filter: none !important;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.8) !important;
+}
+
+.lea-building-dimmed {
+    opacity: 0.15 !important;
+    pointer-events: none !important;
+    filter: grayscale(100%) !important;
+    box-shadow: none !important;
+}
+
+/* Helper Utilities */
+.lea-relative-parent {
+    position: relative !important;
+}
+
+.lea-flex-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+/* Option Button Text Colors (Production Change Menu) */
+.lea-prod-btn-stop {
+    color: #c0392b !important;
+}
+
+.lea-prod-btn-mix {
+    color: #27ae60 !important;
+}
+
+.lea-prod-btn-default {
+    color: #2980b9 !important;
+}
+
+/* Button States (Start/Stop and disabled) */
+.lea-btn-running {
+    background-color: #F44336 !important;
+    color: white !important;
+}
+
+.lea-btn-disabled {
+    background-color: #999 !important;
+    cursor: not-allowed !important;
+}
+
+

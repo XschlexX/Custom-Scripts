@@ -122,11 +122,13 @@
             optBtn.className = 'bb-base-button variant--normal size--sm theme--light lea-prod-menu-btn';
 
             // Wir belassen den gelben Button-Hintergrund des Spiels und ändern nur die Schriftfarbe
-            let textColor = '#2980b9'; // Standard: Blau für Produkte
-            if (opt.action === 'stop') textColor = '#c0392b'; // Rot für Stop
-            if (opt.action === 'mix') textColor = '#27ae60'; // Grün für Verschiedene
-
-            optBtn.style.setProperty('color', textColor, 'important');
+            if (opt.action === 'stop') {
+                optBtn.classList.add('lea-prod-btn-stop');
+            } else if (opt.action === 'mix') {
+                optBtn.classList.add('lea-prod-btn-mix');
+            } else {
+                optBtn.classList.add('lea-prod-btn-default');
+            }
 
             optBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
