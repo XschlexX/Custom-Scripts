@@ -79,24 +79,8 @@
 
         const toast = document.createElement('div');
         toast.id = 'lea-toast';
+        toast.className = 'lea-toast';
         toast.textContent = msg;
-        Object.assign(toast.style, {
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            color: '#fff',
-            padding: '20px 40px',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-            zIndex: '9999',
-            fontSize: '20px',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            pointerEvents: 'none',
-            transition: 'opacity 0.3s ease-in-out'
-        });
 
         document.body.appendChild(toast);
 
@@ -389,22 +373,11 @@
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light';
+        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
         btn.title = 'Nächstes verfügbares Upgrade anklicken';
-        Object.assign(btn.style, {
-            marginRight: '8px',
-            padding: '0 12px'
-        });
 
         const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center';
-        Object.assign(inner.style, {
-            fontSize: '12px',
-            fontWeight: 'bold',
-            whiteSpace: 'pre-line',
-            textAlign: 'center',
-            lineHeight: '1.1'
-        });
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
         inner.textContent = 'Auto\nUpgrade';
         btn.appendChild(inner);
 

@@ -359,22 +359,11 @@
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light';
+        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
         btn.title = 'Gleichmäßig Auffüllen';
-        Object.assign(btn.style, {
-            marginRight: '8px',
-            padding: '0 12px'
-        });
 
         const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center';
-        Object.assign(inner.style, {
-            fontSize: '12px',
-            fontWeight: 'bold',
-            whiteSpace: 'pre-line',
-            textAlign: 'center',
-            lineHeight: '1.1'
-        });
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
         inner.textContent = 'Fill\nUp';
         btn.appendChild(inner);
 

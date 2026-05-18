@@ -150,35 +150,9 @@
         const btn = document.createElement('button');
         btn.id        = NEXT_BTN_ID;
         btn.type      = 'button';
+        btn.className = 'lea-next-match-btn';
         btn.title     = 'Next Match';
-
-        // Absolute Positionierung unten rechts innerhalb der Gebäudeübersicht-Sidebar
-        Object.assign(btn.style, {
-            position: 'absolute',
-            bottom: '20px',
-            right: '25px',
-            zIndex: '9999',
-            padding: '10px 18px',
-            border: '2px solid red',
-            backgroundColor: '#ffe6e6',
-            color: 'red',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            borderRadius: '20px',
-            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'transform 0.1s ease',
-        });
-
         btn.textContent = 'Next';
-
-        // Kleiner Klick-Effekt
-        btn.addEventListener('mousedown', () => btn.style.transform = 'scale(0.95)');
-        btn.addEventListener('mouseup', () => btn.style.transform = 'scale(1)');
-        btn.addEventListener('mouseleave', () => btn.style.transform = 'scale(1)');
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -321,29 +295,21 @@
         btn.title = 'Custom Filter Menü öffnen';
 
         // Basis-Styling und Klassen
-        btn.className = 'bb-base-button size--md theme--light';
-        btn.style.padding = '0 8px';
+        btn.className = 'bb-base-button size--md theme--light lea-filter-btn';
 
         const hasAnyFilterActive = Object.values(activeFilters).some(v => v);
 
         if (hasAnyFilterActive) {
-            btn.classList.add('variant--normal');
-            btn.style.border = '2px solid red';
-            btn.style.backgroundColor = '#ffe6e6';
+            btn.classList.add('variant--normal', 'lea-filter-btn-active');
         } else {
             btn.classList.add('variant--neutral');
         }
 
         const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center';
-        Object.assign(inner.style, {
-            fontSize: '12px',
-            fontWeight: 'bold',
-            color: hasAnyFilterActive ? 'red' : 'inherit',
-            whiteSpace: 'pre-line',
-            textAlign: 'center',
-            lineHeight: '1.1'
-        });
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
+        if (hasAnyFilterActive) {
+            inner.classList.add('lea-filter-btn-inner-active');
+        }
 
         inner.textContent = 'Custom';
 

@@ -84,22 +84,8 @@
     function showTimeWarning(show, msg = '') {
         if (!warningDiv) {
             warningDiv = document.createElement('div');
-            Object.assign(warningDiv.style, {
-                position: 'fixed',
-                top: '100px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: '999999',
-                padding: '10px 20px',
-                backgroundColor: '#FF9800',
-                color: 'white',
-                border: '2px solid white',
-                borderRadius: '5px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-                display: 'none',
-                pointerEvents: 'none' // Wichtig, damit es beim Klicken nicht blockiert
-            });
+            warningDiv.className = 'lea-warning-banner';
+            warningDiv.style.display = 'none';
             document.body.appendChild(warningDiv);
         }
 
@@ -144,24 +130,8 @@
 
         const toast = document.createElement('div');
         toast.id = 'lef-toast';
+        toast.className = 'lea-toast';
         toast.textContent = msg;
-        Object.assign(toast.style, {
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            color: '#fff',
-            padding: '20px 40px',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-            zIndex: '9999',
-            fontSize: '20px',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            pointerEvents: 'none',
-            transition: 'opacity 0.3s ease-in-out'
-        });
 
         document.body.appendChild(toast);
 
@@ -399,22 +369,8 @@
         if (!btn) {
             btn = document.createElement('button');
             btn.id = 'lef-floating-stop-btn';
+            btn.className = 'lea-floating-stop-btn';
             btn.textContent = '🛑 STOP Auto-Ablauf';
-            Object.assign(btn.style, {
-                position: 'fixed',
-                top: '15px',
-                right: '15px',
-                zIndex: '999999',
-                padding: '10px 20px',
-                backgroundColor: '#F44336',
-                color: 'white',
-                border: '2px solid white',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
-                fontSize: '14px'
-            });
 
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -468,22 +424,11 @@
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light';
+        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
         btn.title = 'Startet/Stoppt die automatische Auftragsbearbeitung';
-        Object.assign(btn.style, {
-            marginRight: '8px',
-            padding: '0 12px'
-        });
 
         const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center';
-        Object.assign(inner.style, {
-            fontSize: '12px',
-            fontWeight: 'bold',
-            whiteSpace: 'pre-line',
-            textAlign: 'center',
-            lineHeight: '1.1'
-        });
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
 
         btn.appendChild(inner);
 

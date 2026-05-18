@@ -68,22 +68,11 @@
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light';
+        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
         btn.title = 'Produktion ändern';
-        Object.assign(btn.style, {
-            marginRight: '8px',
-            padding: '0 12px'
-        });
 
         const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center';
-        Object.assign(inner.style, {
-            fontSize: '12px',
-            fontWeight: 'bold',
-            whiteSpace: 'pre-line',
-            textAlign: 'center',
-            lineHeight: '1.1'
-        });
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
         inner.textContent = 'Prod.\nändern';
         btn.appendChild(inner);
 
@@ -111,20 +100,7 @@
 
         const menu = document.createElement('div');
         menu.id = MENU_ID;
-
-        // Styling für das Menü (angelehnt an das Spiel-Design)
-        Object.assign(menu.style, {
-            position: 'absolute',
-            backgroundColor: '#1e2430', // Dunkles Spiel-Blau/Grau
-            border: '1px solid #34495e',
-            borderRadius: '8px',
-            padding: '10px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            zIndex: '9999',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-        });
+        menu.className = 'lea-prod-menu';
 
         // Positioniere das Menü unter dem Button
         const rect = anchorBtn.getBoundingClientRect();
@@ -143,16 +119,7 @@
         options.forEach(opt => {
             const optBtn = document.createElement('button');
             optBtn.textContent = opt.label;
-            optBtn.className = 'bb-base-button variant--normal size--sm theme--light';
-
-            Object.assign(optBtn.style, {
-                width: '100%',
-                textAlign: 'center',
-                padding: '8px 16px',
-                fontWeight: 'bold',
-                borderRadius: '4px',
-                cursor: 'pointer'
-            });
+            optBtn.className = 'bb-base-button variant--normal size--sm theme--light lea-prod-menu-btn';
 
             // Wir belassen den gelben Button-Hintergrund des Spiels und ändern nur die Schriftfarbe
             let textColor = '#2980b9'; // Standard: Blau für Produkte
