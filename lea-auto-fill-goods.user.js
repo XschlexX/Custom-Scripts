@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Auto Fill Goods
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @author       DonSanchos
 // @match        *://*.logistics-empire.com/*
@@ -361,7 +361,7 @@
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
+        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
         btn.title = 'Gleichmäßig Auffüllen';
 
         const inner = document.createElement('div');
@@ -383,7 +383,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.0.1');
+        console.log('[LEA Auto Fill] Initialisiert v1.0.3');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {

@@ -55,18 +55,33 @@
     font-size: 14px !important;
 }
 
-/* Injected Navigation Buttons Layout (e.g. Auto Upgrade, Auto Start, Fill Up, Prod. ändern) */
+/* Injected Navigation Buttons Layout (Unified Design System) */
 .lea-injected-btn {
-    margin-right: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* If the button has native shape--square class (like Auto Refill) */
+.lea-injected-btn.shape--square {
+    padding: 0 !important;
+}
+
+/* If the button is rectangular (default toolbar button) */
+.lea-injected-btn:not(.shape--square) {
     padding: 0 12px !important;
 }
 
 .lea-injected-btn-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
     font-size: 12px !important;
     font-weight: bold !important;
     white-space: pre-line !important;
     text-align: center !important;
-    line-height: 1.1 !important;
+    line-height: 1.15 !important;
 }
 
 /* Next Match Auto-Scroll Navigation Button (Filter) */
@@ -205,5 +220,6 @@
     background-color: #999 !important;
     cursor: not-allowed !important;
 }
+
 
 

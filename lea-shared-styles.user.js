@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Styles
 // @namespace    le-tools
-// @version      1.0.0
+// @version      1.0.1
 // @match        https://game.logistics-empire.com/*
 // @description  Enthält alle geteilten CSS-Stile für die LEA Assistant Skripte.
 // @author       DonSanchos

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Auto Order Assistant
 // @namespace    le-tools
-// @version      1.4.8
+// @version      1.1.9
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -391,7 +391,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.textContent = running ? 'STOP' : 'Auto\nStart';
+                inner.textContent = running ? 'STOP' : 'Auto\nOrder';
                 if (running) {
                     btn.classList.add('lea-btn-running');
                 } else {
@@ -412,26 +412,22 @@
         }
         if (document.getElementById(INJECT_BTN_ID)) return;
 
-        const filterBar = document.querySelector(FILTER_BAR_SELECTOR);
-        if (!filterBar) return;
-
-        // Finde das Such-Icon oben rechts
-        const searchBtn = filterBar.querySelector('[data-tutorial-id="filter_by_search"]');
-        if (!searchBtn) return;
-
-        const searchContainer = searchBtn.closest('.relative');
-        if (!searchContainer) return;
+        const headerContainer = document.querySelector('img[src*="page_header_orders-"]')?.closest('.flex.flex-nowrap.items-center')?.querySelector('.gap-md.flex');
+        if (!headerContainer) return;
 
         // Erstelle den Button im gleichen Stil wie im Upgrade-Skript
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
+        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
+        if (isAutoRunning) {
+            btn.classList.add('lea-btn-running');
+        }
         btn.title = 'Startet/Stoppt die automatische Auftragsbearbeitung';
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-
+        inner.textContent = isAutoRunning ? 'STOP' : 'Auto\nOrder';
         btn.appendChild(inner);
 
         // Klick auf den Button startet oder stoppt den Async-Ablauf
@@ -441,7 +437,7 @@
             executeAutoStart();
         });
 
-        searchContainer.parentNode.insertBefore(btn, searchContainer);
+        headerContainer.appendChild(btn);
 
         // Initiale Beschriftung setzen
         updateAutoStartButtonState(isAutoRunning);
@@ -452,7 +448,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEF Auto Assistant] Initialisiert v1.4.8 (On-Demand Async Flow)');
+        console.log('[LEF Auto Assistant] Initialisiert v1.1.9 (On-Demand Async Flow)');
 
         // Den alten Schalter und Menü-Reste vom alten Skript entfernen, falls das Skript ohne Neuladen überschrieben wurde
         const oldBtn = document.getElementById('lef-toggle-btn');

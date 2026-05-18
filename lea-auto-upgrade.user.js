@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Auto Upgrade
 // @namespace    le-tools
-// @version      1.3.1
+// @version      1.3.11
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -132,13 +132,23 @@
         return null;
     }
 
-    function findSettingsGearWithUpgrade() {
-        const settingsBtns = document.querySelectorAll(SETTINGS_BTN_SELECTOR);
-        for (const btn of settingsBtns) {
-            if (btn.querySelector(`img[src*="${IMPROVEMENT_ARROW_SRC}"]`) && btn.getBoundingClientRect().width > 0) {
-                return btn;
+    function findNextLineToProcess(checkedLineIndices) {
+        const settingsBtns = Array.from(document.querySelectorAll(SETTINGS_BTN_SELECTOR));
+        
+        // 1. Priorität: Zahnrad mit grünem Pfeil (sichtbare Verbesserungen)
+        for (let i = 0; i < settingsBtns.length; i++) {
+            if (settingsBtns[i].querySelector(`img[src*="${IMPROVEMENT_ARROW_SRC}"]`) && settingsBtns[i].getBoundingClientRect().width > 0) {
+                return { btn: settingsBtns[i], index: i, isBlind: false };
             }
         }
+
+        // 2. Priorität: Blinde Suche nach versteckten gesperrten Produkten (da diese keinen Pfeil erzeugen)
+        for (let i = 0; i < settingsBtns.length; i++) {
+            if (!checkedLineIndices.has(i) && settingsBtns[i].getBoundingClientRect().width > 0) {
+                return { btn: settingsBtns[i], index: i, isBlind: true };
+            }
+        }
+
         return null;
     }
 
@@ -160,6 +170,37 @@
         return null;
     }
 
+    function findLockedProductButton() {
+        // Die gesperrten Produkte haben einen eigenen Container: data-tutorial-id="factory-line-configuration-research-button"
+        // (Das Schloss-Bild ist ein Sibling des Buttons, NICHT im Button selbst!)
+        const researchContainers = document.querySelectorAll('[data-tutorial-id="factory-line-configuration-research-button"]');
+        for (const container of researchContainers) {
+            // SICHERHEITSCHECK: Ist WIRKLICH ein Schloss-Icon in diesem Container?
+            // (Manchmal behält das Spiel die tutorial-id auch nach dem Freischalten noch bei!)
+            const hasLock = !!container.querySelector('img[src*="locked"], img[src*="lock"], img[src*="schloss"]');
+            if (!hasLock) continue;
+
+            const btn = container.querySelector('button');
+            if (btn && btn.getBoundingClientRect().width > 0) {
+                return btn;
+            }
+        }
+
+        // Fallback: Suchen wir nach dem Schloss-Bild irgendwo auf der Seite
+        const allLockImgs = document.querySelectorAll('img[src*="locked"], img[src*="lock"], img[src*="schloss"]');
+        for (const lock of allLockImgs) {
+            // Das Schloss ist ein Sibling vom Button oder im gleichen Container
+            const container = lock.closest('.relative') || lock.parentElement;
+            if (container) {
+                const btn = container.querySelector('button');
+                if (btn && btn.getBoundingClientRect().width > 0) {
+                    return btn;
+                }
+            }
+        }
+        return null;
+    }
+
     async function handleUpgradeDialog() {
         // Warte auf Dialog (max 1500ms)
         const dialogAppeared = await waitForElementToAppear(DIALOG_SELECTOR, 1500);
@@ -170,15 +211,26 @@
 
         const titleEl = dialog.querySelector(TITLE_SELECTOR);
         const titleText = (titleEl && titleEl.textContent || '').trim();
-        if (!/upgrade/i.test(titleText)) return;
+        if (!/upgrade|freischalten/i.test(titleText)) return;
 
         let targetBtn = null;
+        
+        // 1. Suche nach Button mit Währungs-Icon (Bucks, Superbucks etc.)
         dialog.querySelectorAll('button img').forEach(img => {
             const src = img.getAttribute('src') || img.src || '';
-            if (src.startsWith(BUCKS_SRC_PREFIX) && !targetBtn) {
+            if (src.includes('/cur_') && !targetBtn) {
                 targetBtn = img.closest('button');
             }
         });
+
+        // 2. Fallback: Suche nach typischem Bestätigungs-Text
+        if (!targetBtn) {
+            const allBtns = Array.from(dialog.querySelectorAll('button'));
+            targetBtn = allBtns.find(b => {
+                const text = b.textContent.toLowerCase();
+                return (text.includes('freischalten') || text.includes('upgrade') || text.includes('bestätigen') || text.includes('kaufen')) && !b.hasAttribute('disabled');
+            });
+        }
 
         if (targetBtn && !targetBtn.hasAttribute('disabled')) {
             console.log('[LEA Upgrade] Klicke Dialog-Bestätigung...');
@@ -252,6 +304,7 @@
                 // Schritt 3: Alle Upgrades in diesem Gebäude abarbeiten
                 let hasMoreUpgrades = true;
                 let emergencyExitCounter = 0;
+                let checkedLineIndices = new Set(); // Speichert Indizes der Linien, in denen wir schon waren
 
                 while (hasMoreUpgrades) {
                     hasMoreUpgrades = false;
@@ -272,32 +325,51 @@
                         continue; // Schleife von vorne starten
                     }
 
-                    // 3.2 Produktionslinien prüfen (Zahnrad mit grünem Pfeil)
-                    const settingsBtn = findSettingsGearWithUpgrade();
-                    if (settingsBtn) {
-                        console.log('[LEA Upgrade] Zahnrad mit Upgrade-Pfeil gefunden, betrete Linie...');
-                        settingsBtn.click();
+                    // 3.2 Produktionslinien prüfen (sichtbar oder blinde Suche)
+                    const lineTarget = findNextLineToProcess(checkedLineIndices);
+                    if (lineTarget) {
+                        if (lineTarget.isBlind) {
+                            console.log(`[LEA Upgrade] Blinde Suche: Betrete Linie ${lineTarget.index + 1} auf Verdacht nach gesperrten Produkten...`);
+                        } else {
+                            console.log(`[LEA Upgrade] Zahnrad mit Upgrade-Pfeil gefunden, betrete Linie ${lineTarget.index + 1}...`);
+                        }
+                        
+                        checkedLineIndices.add(lineTarget.index);
+                        lineTarget.btn.click();
 
                         // Warte bis Linieneinstellungen offen sind
                         await waitForElementToAppear('.improvements-entry', 2000);
                         await new Promise(r => setTimeout(r, 300));
 
-                        // Alle Verbesserungen innerhalb dieser Linie abarbeiten
+                        // Alle Verbesserungen & gesperrten Produkte innerhalb dieser Linie abarbeiten
                         let hasMoreLineUpgrades = true;
                         let lineEmergencyCounter = 0;
                         while (hasMoreLineUpgrades) {
                             lineEmergencyCounter++;
-                            if (lineEmergencyCounter > 20) break;
+                            if (lineEmergencyCounter > 30) break;
 
+                            // 1. Suche nach gelben Verbesserungs-Buttons (+50%, +100)
                             const improvementBtn = findImprovementButton();
                             if (improvementBtn) {
                                 console.log('[LEA Upgrade] Gelber Verbesserungs-Button gefunden, klicke...');
                                 improvementBtn.click();
                                 await handleUpgradeDialog();
-                                await new Promise(r => setTimeout(r, 300));
-                            } else {
-                                hasMoreLineUpgrades = false;
+                                await new Promise(r => setTimeout(r, 400));
+                                continue;
                             }
+
+                            // 2. Suche nach gesperrten Produkt-Buttons (mit Schloss)
+                            const lockedProductBtn = findLockedProductButton();
+                            if (lockedProductBtn) {
+                                console.log('[LEA Upgrade] Gesperrten Produkt-Button gefunden, klicke zum Freischalten...');
+                                lockedProductBtn.click();
+                                await handleUpgradeDialog();
+                                await new Promise(r => setTimeout(r, 400));
+                                continue;
+                            }
+
+                            // Weder Verbesserungen noch gesperrte Produkte gefunden -> Fertig mit dieser Linie
+                            hasMoreLineUpgrades = false;
                         }
 
                         // Fertig mit dieser Linie -> Gehe zurück in die Gebäude-Übersicht
@@ -329,7 +401,7 @@
                 const backBtn = document.querySelector(BACK_BTN_SELECTOR);
                 if (backBtn) {
                     backBtn.click();
-                    
+
                     // Wir warten darauf, dass die Upgrade-Übersicht wieder aktiv ist
                     const backStartTime = Date.now();
                     while (!isUpgradeOverviewOpen()) {
@@ -358,22 +430,15 @@
         }
         if (document.getElementById(INJECT_BTN_ID)) return;
 
-        const filterBar = document.querySelector(FILTER_BAR_SELECTOR);
-        if (!filterBar) return;
+        const headerContainer = document.querySelector('img[src*="improvement_arrow"]')?.closest('.flex.flex-nowrap.items-center')?.querySelector('.gap-md.flex');
+        if (!headerContainer) return;
 
-        const toolbar = filterBar.querySelector('.flex.items-center.justify-between');
-        if (!toolbar) return;
-
-        const searchBtn = toolbar.querySelector('[data-tutorial-id="filter_by_search"]');
-        if (!searchBtn) return;
-
-        const searchContainer = searchBtn.closest('.relative');
-        if (!searchContainer) return;
+        const blueprintBtn = headerContainer.querySelector('button');
 
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
+        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
         btn.title = 'Nächstes verfügbares Upgrade anklicken';
 
         const inner = document.createElement('div');
@@ -387,14 +452,18 @@
             executeAutoUpgrade();
         });
 
-        searchContainer.parentNode.insertBefore(btn, searchContainer);
+        if (blueprintBtn) {
+            headerContainer.insertBefore(btn, blueprintBtn);
+        } else {
+            headerContainer.appendChild(btn);
+        }
     }
 
     // -----------------------------------------------------------------------
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Upgrade Search and Accept] Initialisiert v1.3.1 (Voll-Automatikmodus)');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.3.11 (Voll-Automatikmodus)');
 
         injectScanButton();
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Auto Produktion Change
 // @namespace    le-tools
-// @version      1.1.0
+// @version      1.1.1
 // @match        https://game.logistics-empire.com/*
 // @description  Aendert die Produktion in den Produktionslinien per Knopfdruck.
 // @run-at       document-idle
@@ -68,12 +68,12 @@
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
+        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
         btn.title = 'Produktion ändern';
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.textContent = 'Prod.\nändern';
+        inner.textContent = 'Change\nProduct';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
@@ -298,7 +298,7 @@
      * Initialisiert das Skript und startet den MutationObserver.
      */
     function init() {
-        console.log('[LEA Auto Prod Change] Initialisiert v1.0.0');
+        console.log('[LEA Auto Prod Change] Initialisiert v1.1.1');
 
         injectProductionChangeButton();
 
