@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Custom Filter
 // @namespace    le-tools
-// @version      1.0.2
+// @version      1.0.4
 // @match        https://game.logistics-empire.com/*
 // @description  Fügt einen Filter in der Gebäudeübersicht hinzu, um nur Gebäude mit gestoppter Produktionslinie anzuzeigen.
 // @run-at       document-idle
@@ -131,44 +131,61 @@
         lastMatchScrollTop = null;
     }
 
-    /**
-     * Zeigt einen kleinen "▼ Weiter"-Button neben dem Custom-Button an.
-     * Wird nach jedem gefundenen Treffer aufgerufen.
-     */
     function injectNextButton() {
         // Alten Button entfernen (verhindert Duplikate)
         const old = document.getElementById(NEXT_BTN_ID);
         if (old) old.remove();
 
-        const buildingTypeDiv = document.querySelector('[data-tutorial-id="filter_by_building_type"]');
-        if (!buildingTypeDiv) return;
+        const cont = getScrollContainer();
+        if (!cont) return;
+        const parent = cont.parentElement;
+        if (!parent) return;
+
+        // Sicherstellen, dass das Elternelement als Positionierungs-Anker dient
+        const computedStyle = window.getComputedStyle(parent);
+        if (computedStyle.position === 'static') {
+            parent.style.position = 'relative';
+        }
 
         const btn = document.createElement('button');
         btn.id        = NEXT_BTN_ID;
         btn.type      = 'button';
-        btn.title     = 'Zum nächsten Treffer scrollen';
-        btn.className = 'bb-base-button size--md theme--light variant--neutral';
-        btn.style.padding = '0 10px';
-        btn.style.border  = '2px solid red';
-        btn.style.backgroundColor = '#ffe6e6';
+        btn.title     = 'Next Match';
 
-        const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center';
-        Object.assign(inner.style, {
-            fontSize:   '13px',
+        // Absolute Positionierung unten rechts innerhalb der Gebäudeübersicht-Sidebar
+        Object.assign(btn.style, {
+            position: 'absolute',
+            bottom: '20px',
+            right: '25px',
+            zIndex: '9999',
+            padding: '10px 18px',
+            border: '2px solid red',
+            backgroundColor: '#ffe6e6',
+            color: 'red',
             fontWeight: 'bold',
-            color:      'red',
-            gap:        '4px',
+            fontSize: '14px',
+            borderRadius: '20px',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'transform 0.1s ease',
         });
-        inner.textContent = '▼ Weiter';
 
-        btn.appendChild(inner);
+        btn.textContent = 'Next';
+
+        // Kleiner Klick-Effekt
+        btn.addEventListener('mousedown', () => btn.style.transform = 'scale(0.95)');
+        btn.addEventListener('mouseup', () => btn.style.transform = 'scale(1)');
+        btn.addEventListener('mouseleave', () => btn.style.transform = 'scale(1)');
+
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             scrollToNextMatch();
         });
 
-        buildingTypeDiv.appendChild(btn);
+        parent.appendChild(btn);
     }
 
     /** Startet die Suche ab direkt unterhalb des letzten Treffers. */
@@ -275,6 +292,8 @@
         if (!isBuildingOverviewOpen()) {
             const existing = document.getElementById(INJECT_BTN_ID);
             if (existing) existing.remove();
+            const nextBtn = document.getElementById(NEXT_BTN_ID);
+            if (nextBtn) nextBtn.remove();
             return;
         }
 
