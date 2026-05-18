@@ -6,6 +6,8 @@
 // @author       DonSanchos
 // @match        *://*.logistics-empire.com/*
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-auto-fill-goods.user.js
+// @downloadURL  https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-auto-fill-goods.user.js
 // ==/UserScript==
 
 (function () {

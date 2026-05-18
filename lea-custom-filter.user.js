@@ -6,6 +6,8 @@
 // @description  Fügt einen Filter in der Gebäudeübersicht hinzu, um nur Gebäude mit gestoppter Produktionslinie anzuzeigen.
 // @run-at       document-idle
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-custom-filter.user.js
+// @downloadURL  https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-custom-filter.user.js
 // ==/UserScript==
 
 (function () {

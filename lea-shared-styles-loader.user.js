@@ -5,10 +5,12 @@
 // @match        https://game.logistics-empire.com/*
 // @description  Läd die geteilten CSS-Stile für alle LEA Assistant Skripte.
 // @author       DonSanchos
-// @resource     LEA_STYLES file:///D:/Clouds/OneDrive/Apps/Tampermonkey/Logistics-Empire-Scripts/lea-shared-styles.css
+// @resource     LEA_STYLES https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-shared-styles.css
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-shared-styles-loader.user.js
+// @downloadURL  https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-shared-styles-loader.user.js
 // ==/UserScript==
 
 (function () {
