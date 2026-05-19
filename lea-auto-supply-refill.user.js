@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Auto Supply Refill
 // @namespace    le-tools
-// @version      1.0.3
+// @version      1.0.4
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -204,13 +204,14 @@
         console.log('[LEA Supply Refill] Starte Assistenten-Durchklick-Logik...');
         let stepCount = 0;
         let abortRefill = false;
+        let isTimeTooLong = false;
 
         while (stepCount < 15) {
-            if (stopRequested) return false;
+            if (stopRequested) return { status: 'stopped' };
 
             const currentBtn = document.querySelector('button[data-tutorial-id="transport-assistant"]');
             if (!currentBtn) {
-                return !abortRefill;
+                return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'success' };
             }
 
             const src = currentBtn.querySelector('img')?.getAttribute('src') || '';
@@ -249,6 +250,7 @@
                         console.warn(`[LEA Supply Refill] Lieferzeit zu lang (${timeResult.timeString} > ${MAX_DELIVERY_TIME_MINUTES} Min). Breche ab!`);
                         showToast(`Zeit zu lang (${timeResult.timeString}). Übersprungen!`);
                         abortRefill = true;
+                        isTimeTooLong = true;
                         break;
                     } else {
                         console.log(`[LEA Supply Refill] Lieferzeit OK (${timeResult.timeString}). Starte Transport...`);
@@ -256,7 +258,7 @@
 
                     simulateClick(currentBtn);
                     await waitForElementToDisappear('button[data-tutorial-id="transport-assistant"]', 3000);
-                    return !abortRefill;
+                    return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'success' };
                 }
             }
 
@@ -264,7 +266,78 @@
             stepCount++;
         }
 
-        return false;
+        return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'failed' };
+    }
+
+    // =========================================================================
+    // UI: STATISTIK MODAL AM SCHLUSS
+    // =========================================================================
+
+    function showRefillReportModal(stats) {
+        // Altes Modal entfernen falls vorhanden
+        const existing = document.getElementById('lea-refill-report-modal');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'lea-refill-report-modal';
+        overlay.className = 'lea-modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'lea-modal';
+
+        const title = document.createElement('h3');
+        title.className = 'lea-modal-title';
+        title.textContent = '🔄 Auto Refill Report';
+        modal.appendChild(title);
+
+        const list = document.createElement('div');
+        list.className = 'lea-modal-list';
+
+        const items = [
+            { label: 'Gesamt geprüfte Gebäude', value: stats.total, color: '#f7fafc', icon: '🏢' },
+            { label: 'Erfolgreich aufgefüllt', value: stats.refilled, color: '#4ade80', icon: '✅' },
+            { label: 'Bereits voll / kein Bedarf', value: stats.alreadyFull, color: '#94a3b8', icon: '⚪' },
+            { label: 'Übersprungen (Zeit zu lang)', value: stats.skippedTime, color: '#fbbf24', icon: '⏳' }
+        ];
+
+        if (stats.failed > 0) {
+            items.push({ label: 'Fehlerhaft / Ladefehler', value: stats.failed, color: '#f87171', icon: '⚠️' });
+        }
+
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'lea-modal-row';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'lea-modal-label';
+            labelSpan.innerHTML = `<span>${item.icon}</span> <span>${item.label}</span>`;
+
+            const valSpan = document.createElement('span');
+            valSpan.className = 'lea-modal-value';
+            valSpan.style.color = item.color;
+            valSpan.textContent = item.value;
+
+            row.appendChild(labelSpan);
+            row.appendChild(valSpan);
+            list.appendChild(row);
+        });
+
+        modal.appendChild(list);
+
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'lea-modal-btn-container';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'lea-modal-close-btn';
+        closeBtn.textContent = 'Schließen';
+        closeBtn.addEventListener('click', () => {
+            overlay.remove();
+        });
+
+        btnContainer.appendChild(closeBtn);
+        modal.appendChild(btnContainer);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
     }
 
     // =========================================================================
@@ -277,6 +350,14 @@
         stopRequested = false;
         updateStartButtonState(true);
         showToast('Auto Refill gestartet...');
+
+        const stats = {
+            total: 0,
+            refilled: 0,
+            alreadyFull: 0,
+            skippedTime: 0,
+            failed: 0
+        };
 
         try {
             const searchSuccess = await triggerSearch('(AF)');
@@ -308,12 +389,14 @@
                     break;
                 }
 
+                stats.total++;
                 const currentCard = afCards[currentIndex];
 
                 // Pfeil-Button finden
                 const arrowBtn = currentCard.querySelector('img[src*="to_quest_objective"]')?.closest('button');
                 if (!arrowBtn) {
                     console.warn(`[LEA Supply Refill] Kein Pfeil-Button für Gebäude an Index ${currentIndex} gefunden. Überspringe...`);
+                    stats.failed++;
                     currentIndex++;
                     continue;
                 }
@@ -329,6 +412,7 @@
                 if (!loaded) {
                     console.error('[LEA Supply Refill] Ladezeit der Fabrik überschritten.');
                     consecutiveFailures++;
+                    stats.failed++;
                     if (consecutiveFailures > 3) {
                         showToast('Fehler: Zu viele Ladefehler. Stoppe.');
                         break;
@@ -345,6 +429,7 @@
 
                 if (!internBtn) {
                     console.log('[LEA Supply Refill] Kein Button "Intern anfordern" gefunden. Gehe zurück.');
+                    stats.alreadyFull++;
                     await goBack();
                     currentIndex++;
                     continue;
@@ -354,6 +439,7 @@
 
                 if (isDisabled) {
                     console.log(`[LEA Supply Refill] Gebäude ${currentIndex + 1} benötigt keinen Nachschub (ausgegraut).`);
+                    stats.alreadyFull++;
                     await goBack();
                     currentIndex++;
                     continue;
@@ -367,19 +453,32 @@
                 const assistantOpened = await waitForElementToAppear('button[data-tutorial-id="transport-assistant"]', 4000);
                 if (!assistantOpened) {
                     console.warn('[LEA Supply Refill] Transport-Assistent nicht erschienen.');
+                    stats.failed++;
                     await goBack();
                     currentIndex++;
                     continue;
                 }
 
                 // Transport-Assistent Klick-Logik ausführen
-                const refillSuccess = await runTransportAssistantRefill();
+                const refillResult = await runTransportAssistantRefill();
 
-                if (refillSuccess) {
+                if (refillResult.status === 'success') {
                     console.log('[LEA Supply Refill] Transport erfolgreich gestartet!');
+                    stats.refilled++;
                     await wait(600);
                 } else {
                     console.log('[LEA Supply Refill] Transport abgebrochen.');
+                    if (refillResult.status === 'skipped_time') {
+                        stats.skippedTime++;
+                    } else if (refillResult.status === 'stopped') {
+                        stats.total--; // Nicht komplett bearbeitet
+                        await closeVehicleWindow();
+                        await wait(300);
+                        await goBack();
+                        break;
+                    } else {
+                        stats.failed++;
+                    }
                     await closeVehicleWindow();
                     await wait(300);
                 }
@@ -395,6 +494,10 @@
                 showToast('Auto Refill gestoppt.');
             } else {
                 showToast('Auto Refill abgeschlossen!');
+            }
+
+            if (stats.total > 0) {
+                showRefillReportModal(stats);
             }
 
         } catch (e) {
@@ -501,7 +604,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Supply Refill] Initialisiert v1.0.3 (Voll-Automatikmodus)');
+        console.log('[LEA Auto Supply Refill] Initialisiert v1.0.4 (Voll-Automatikmodus)');
         injectStartButton();
 
         let isHandlingMutations = false;
