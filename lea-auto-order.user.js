@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Auto Order Assistant
 // @namespace    le-tools
-// @version      1.1.9
+// @version      1.0.10
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -247,8 +247,8 @@
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Frau (Produkte automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button-continue"]', 2000);
-                        } else if (src.includes('button-continue') || src.includes('in_progress')) {
+                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button_continue"]', 2000);
+                        } else if (src.includes('button_continue') || src.includes('in_progress')) {
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Doppelpfeil (Weiter zur Fahrzeugauswahl)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Frau im neuen Fenster erscheint
@@ -260,8 +260,8 @@
                             console.log('[LEF Auto Assistant] Fahrzeugauswahl: Klicke Frau (Fahrzeug automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button-continue"]', 2000);
-                        } else if (src.includes('button-continue') || src.includes('in_progress')) {
+                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button_continue"]', 2000);
+                        } else if (src.includes('button_continue') || src.includes('in_progress')) {
                             // Zeit dynamisch abfragen statt fix zu warten
                             let result = getDeliveryTimeSeconds();
                             let waitTime = 0;
