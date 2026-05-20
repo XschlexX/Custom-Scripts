@@ -133,14 +133,59 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
     z-index: 9999 !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    max-width: 240px !important;
+    justify-content: center !important;
     gap: 8px !important;
 }
 
-.lea-prod-menu-btn {
+.lea-prod-menu-col {
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    max-width: none !important;
+}
+
+.lea-prod-row {
+    display: flex !important;
+    gap: 8px !important;
+}
+
+.lea-prod-row-start {
+    justify-content: flex-start !important;
     width: 100% !important;
+}
+
+.lea-prod-row-end {
+    justify-content: flex-end !important;
+}
+
+.lea-prod-row-col {
+    flex-direction: column !important;
+    align-items: flex-end !important;
+}
+
+.lea-tile-32 {
+    width: 32px !important;
+    height: 32px !important;
+    position: relative !important;
+}
+
+.lea-tile-64 {
+    width: 64px !important;
+    height: 64px !important;
+    position: relative !important;
+}
+
+.lea-tile-100x40 {
+    width: 100px !important;
+    height: 40px !important;
+    position: relative !important;
+}
+
+.lea-prod-menu-btn {
     text-align: center !important;
-    padding: 8px 16px !important;
+    padding: 6px !important;
     font-weight: bold !important;
     border-radius: 4px !important;
     cursor: pointer !important;
