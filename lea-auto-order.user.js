@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.1
+// @version      1.1.2
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -392,7 +392,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.textContent = running ? 'STOP' : 'Auto\nOrder';
+                inner.textContent = running ? 'STOP' : 'Auto<br>Order';
                 if (running) {
                     btn.classList.add('lea-btn-running');
                 } else {
