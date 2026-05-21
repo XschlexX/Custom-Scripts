@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         LEA Auto Supply Refill
-// @namespace    le-tools
-// @version      1.0.4
+// @namespace    lea-tools
+// @author       DonSanchos
+// @version      1.1.1
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle

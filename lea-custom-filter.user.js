@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         LEA Custom Filter
-// @namespace    le-tools
-// @version      1.0.4
+// @namespace    lea-tools
+// @author       DonSanchos
+// @version      1.1.1
 // @match        https://game.logistics-empire.com/*
 // @description  Fügt einen Filter in der Gebäudeübersicht hinzu, um nur Gebäude mit gestoppter Produktionslinie anzuzeigen.
 // @run-at       document-idle

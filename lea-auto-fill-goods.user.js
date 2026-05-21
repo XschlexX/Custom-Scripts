@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         LEA Auto Fill Goods
-// @namespace    http://tampermonkey.net/
-// @version      1.0.3
-// @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
+// @namespace    lea-tools
 // @author       DonSanchos
-// @match        *://*.logistics-empire.com/*
+// @version      1.1.1
+// @match        https://game.logistics-empire.com/*
+// @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-auto-fill-goods.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-auto-fill-goods.user.js

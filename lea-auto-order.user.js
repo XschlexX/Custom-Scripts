@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         LEA Auto Order Assistant
-// @namespace    le-tools
-// @version      1.0.10
+// @namespace    lea-tools
+// @author       DonSanchos
+// @version      1.1.1
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle

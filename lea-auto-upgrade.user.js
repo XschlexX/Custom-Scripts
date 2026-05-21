@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         LEA Auto Upgrade
-// @namespace    le-tools
-// @version      1.0.13
+// @namespace    lea-tools
+// @author       DonSanchos
+// @version      1.1.1
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
