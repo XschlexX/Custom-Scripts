@@ -392,7 +392,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.textContent = running ? 'STOP' : 'Auto<br>Order';
+                inner.innerHTML = running ? 'STOP' : 'Auto<br>Order';
                 if (running) {
                     btn.classList.add('lea-btn-running');
                 } else {
@@ -428,7 +428,7 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.textContent = isAutoRunning ? 'STOP' : 'Auto\nOrder';
+        inner.innerHTML = isAutoRunning ? 'STOP' : 'Auto<br>Order';
         btn.appendChild(inner);
 
         // Klick auf den Button startet oder stoppt den Async-Ablauf
