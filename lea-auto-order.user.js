@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.4
+// @version      1.1.5
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -378,9 +378,6 @@
             btn.className = 'lea-floating-stop-btn';
             btn.textContent = '🛑 STOP Auto-Ablauf';
 
-            // Inline-Styles als sicherer Fallback für korrekte Positionierung und Sichtbarkeit
-            btn.style.cssText = 'position: fixed !important; top: 15px !important; right: 15px !important; z-index: 999999 !important; padding: 10px 20px !important; background-color: #F44336 !important; color: white !important; border: 2px solid white !important; border-radius: 8px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5) !important; font-size: 14px !important;';
-
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -388,8 +385,6 @@
                 showToast('Auto-Ablauf wird abgebrochen...');
                 stopRequested = true;
                 btn.textContent = 'Stoppt...';
-                btn.style.backgroundColor = '#999';
-                btn.style.cursor = 'not-allowed';
                 btn.classList.add('lea-btn-disabled');
             });
 
