@@ -44,10 +44,10 @@
 
         if (isUpgrading) {
             btn.classList.add('lea-btn-running');
-            if (inner) inner.textContent = 'STOP';
+            if (inner) inner.innerHTML = 'STOP';
         } else {
             btn.classList.remove('lea-btn-running');
-            if (inner) inner.textContent = 'Auto\nUpgrade';
+            if (inner) inner.innerHTML = 'Auto<br>Upgrade';
         }
     }
 
@@ -545,14 +545,14 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.textContent = 'Auto\nUpgrade';
+        inner.innerHTML = 'Auto<br>Upgrade';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (isUpgrading) {
                 stopRequested = true;
-                inner.textContent = 'Stoppe...';
+                inner.innerHTML = 'Stoppe...';
             } else {
                 executeAutoUpgrade();
             }

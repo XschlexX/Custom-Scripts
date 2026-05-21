@@ -77,7 +77,7 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.textContent = 'Change\nProduct';
+        inner.innerHTML = 'Change<br>Product';
         btn.appendChild(inner);
 
         btn.addEventListener('click', async (e) => {

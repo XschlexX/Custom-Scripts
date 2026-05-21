@@ -366,7 +366,7 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.textContent = 'Fill\nUp';
+        inner.innerHTML = 'Fill<br>Up';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
