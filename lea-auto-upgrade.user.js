@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.2
+// @version      1.1.3
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -17,21 +17,21 @@
     // -----------------------------------------------------------------------
     // SELEKTOREN & KONSTANTEN
     // -----------------------------------------------------------------------
-    const AVAILABLE_STATUS_SRC  = 'improvement_status_available_mini'; // Gelbes Upgrade-verfuegbar-Icon
-    const ARROW_BTN_SRC         = 'to_quest_objective';                // Blauer Pfeil rechts am Gebaeude
-    const INJECT_BTN_ID         = 'lea-upgrade-scan-btn';
+    const AVAILABLE_STATUS_SRC = 'improvement_status_available_mini'; // Gelbes Upgrade-verfuegbar-Icon
+    const ARROW_BTN_SRC = 'to_quest_objective';                // Blauer Pfeil rechts am Gebaeude
+    const INJECT_BTN_ID = 'lea-upgrade-scan-btn';
 
     // UI Elemente im Gebäude
     const SETTINGS_BTN_SELECTOR = 'button[data-tutorial-id="factory-line-settings-button"]';
     const IMPROVEMENT_ARROW_SRC = 'improvement_arrow';
-    const BACK_BTN_SELECTOR     = '.bottom-navigation button[show-divider]';
+    const BACK_BTN_SELECTOR = '.bottom-navigation button[show-divider]';
 
     // Dialog
     const DIALOG_SELECTOR = '.bb-dialog';
-    const TITLE_SELECTOR  = '.text-h1';
+    const TITLE_SELECTOR = '.text-h1';
 
     // Status
-    let isUpgrading   = false;
+    let isUpgrading = false;
     let stopRequested = false;
 
     // -----------------------------------------------------------------------
@@ -281,8 +281,8 @@
             targetBtn = Array.from(dialog.querySelectorAll('button')).find(b => {
                 const text = b.textContent.toLowerCase();
                 return (text.includes('freischalten') || text.includes('upgrade') ||
-                        text.includes('bestätigen') || text.includes('kaufen')) &&
-                        !b.hasAttribute('disabled');
+                    text.includes('bestätigen') || text.includes('kaufen')) &&
+                    !b.hasAttribute('disabled');
             });
         }
 
