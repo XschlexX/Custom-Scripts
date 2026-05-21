@@ -25,6 +25,11 @@
     const FILTER_BAR_SELECTOR = '.bb-filter-and-sort-bar';
     const INJECT_BTN_ID = 'lef-auto-start-btn';
 
+    // Bild-Dateinamen für Buttons (können sich bei Spiel-Updates ändern)
+    const IMG_AUTO_SELECT = 'auto_select';      // Frau-Icon (Automatisch wählen)
+    const IMG_CONTINUE = 'button-continue';     // Doppelpfeil-Icon (Weiter/Starten)
+    const IMG_IN_PROGRESS = 'in_progress';      // Fortschritts-Icon
+
     let isAutoRunning = false;
     let stopRequested = false;
 
@@ -244,25 +249,25 @@
 
                     if (!isVehicleWindow) {
                         // Phase 1: Produktauswahl (Angeforderte Waren)
-                        if (src.includes('auto_select')) {
+                        if (src.includes(IMG_AUTO_SELECT)) {
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Frau (Produkte automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button_continue"]', 2000);
-                        } else if (src.includes('button_continue') || src.includes('in_progress')) {
+                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_CONTINUE}"]`, 2000);
+                        } else if (src.includes(IMG_CONTINUE) || src.includes(IMG_IN_PROGRESS)) {
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Doppelpfeil (Weiter zur Fahrzeugauswahl)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Frau im neuen Fenster erscheint
-                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="auto_select"]', 2000);
+                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_AUTO_SELECT}"]`, 2000);
                         }
                     } else {
                         // Phase 2: Fahrzeugauswahl
-                        if (src.includes('auto_select')) {
+                        if (src.includes(IMG_AUTO_SELECT)) {
                             console.log('[LEF Auto Assistant] Fahrzeugauswahl: Klicke Frau (Fahrzeug automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button_continue"]', 2000);
-                        } else if (src.includes('button_continue') || src.includes('in_progress')) {
+                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_CONTINUE}"]`, 2000);
+                        } else if (src.includes(IMG_CONTINUE) || src.includes(IMG_IN_PROGRESS)) {
                             // Zeit dynamisch abfragen statt fix zu warten
                             let result = getDeliveryTimeSeconds();
                             let waitTime = 0;
