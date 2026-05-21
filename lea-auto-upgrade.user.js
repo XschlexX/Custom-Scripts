@@ -2,13 +2,13 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.1
+// @version      1.1.2
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-auto-upgrade.user.js
-// @downloadURL  https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-auto-upgrade.user.js
+// @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-upgrade.user.js
+// @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-upgrade.user.js
 // ==/UserScript==
 
 (function () {

@@ -2,15 +2,15 @@
 // @name         LEA Shared Styles
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.2
+// @version      1.1.3
 // @match        https://game.logistics-empire.com/*
 // @description  Enthält alle geteilten CSS-Stile für die LEA Assistant Skripte.
-// @resource     LEA_STYLES https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-shared-styles.css
+// @resource     LEA_STYLES https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-styles.css
 // @run-at       document-start
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
-// @updateURL    https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-shared-styles.user.js
-// @downloadURL  https://raw.githubusercontent.com/XschlexX/Logistics-Empire-Scripts/main/lea-shared-styles.user.js
+// @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-styles.user.js
+// @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-styles.user.js
 // ==/UserScript==
 
 (function () {
