@@ -2,7 +2,7 @@
 // @name         LEA Auto Produktion Change
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.2
+// @version      1.1.3
 // @match        https://game.logistics-empire.com/*
 // @description  Aendert die Produktion in den Produktionslinien per Knopfdruck.
 // @run-at       document-idle
