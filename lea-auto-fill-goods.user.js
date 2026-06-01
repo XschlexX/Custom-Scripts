@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.2
+// @version      1.1.4
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -61,14 +61,29 @@
         return isNaN(num) ? 0 : Math.floor(num * multiplier);
     }
 
-    // Extracts the full number from a <number-flow-vue> element by reading aria-label or the rendered digits.
+    // Extracts the displayed number from a <number-flow-vue> element.
+    // number-flow-vue renders in Declarative Shadow DOM – aria-label and textContent are always empty.
+    // The actual digit values are stored as CSS custom property --current on each .digit element.
+    // Example: <span class="digit" style="--current: 9"> means the digit "9" is shown.
     function getNumberFromFlow(element) {
         if (!element) return 0;
+        // Try aria-label first (future-proof if the component ever populates it)
         const ariaLabel = element.getAttribute('aria-label');
-        if (ariaLabel) {
+        if (ariaLabel && ariaLabel.trim() !== '') {
             return parseAmount(ariaLabel);
         }
-        return 0;
+        // Read from Shadow DOM via --current CSS variable on [part~="integer-digit"] elements
+        const shadowRoot = element.shadowRoot;
+        if (!shadowRoot) return 0;
+        const digits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
+        if (digits.length === 0) return 0;
+        let numStr = '';
+        digits.forEach(digit => {
+            const style = digit.getAttribute('style') || '';
+            const match = style.match(/--current:\s*(\d+)/);
+            if (match) numStr += match[1];
+        });
+        return numStr ? parseInt(numStr, 10) : 0;
     }
 
     // Simulate clicking on an element
@@ -261,19 +276,21 @@
             if (!(imgSrc in remaining)) continue;
             if (remaining[imgSrc] <= 0) continue;
 
-            // Lieferant-Max ermitteln (letzter flow-Wert > 0 der nicht im Input-Feld liegt)
+            // Lieferant-Bestand: ERSTER non-input flow = aktueller Lagerbestand des Lieferanten.
+            // DOM-Reihenfolge: [Bestand, Kapazität, Input] → vorwärts iterieren!
+            // (Rückwärts würde die Kapazität lesen, nicht den verfügbaren Bestand.)
             let supplierMax = 0;
             const flows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue')) : [];
-            for (let fi = flows.length - 1; fi >= 0; fi--) {
+            for (let fi = 0; fi < flows.length; fi++) {
                 if (inputContainer.contains(flows[fi])) continue;
-                const val = parseAmount(flows[fi].getAttribute('aria-label') || '');
-                if (val > 0) { supplierMax = val; break; }
+                supplierMax = getNumberFromFlow(flows[fi]); // erster = Bestand
+                break;
             }
-            if (supplierMax <= 0) continue;
+            if (supplierMax <= 0) continue; // Lieferant hat nichts auf Lager
 
             const amountToTake = Math.min(remaining[imgSrc], supplierMax);
             const name = imgSrc.split('/').pop().replace('.avif', '');
-            console.log(`  ${name}: nehme ${amountToTake} (Lieferant max ${supplierMax})`);
+            console.log(`  ${name}: nehme ${amountToTake} (Lieferant Bestand: ${supplierMax})`);
 
             await simulateTyping(inputContainer, amountToTake);
             remaining[imgSrc] -= amountToTake;
@@ -298,28 +315,35 @@
             if (!goodsImg) continue;
             if (goodsImg.getAttribute('src') !== maxGoodSrc) continue;
 
-            // Lieferant-Max ermitteln
-            let supplierMax = 0;
-            const flows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue')) : [];
-            for (let fi = flows.length - 1; fi >= 0; fi--) {
-                if (inputContainer.contains(flows[fi])) continue;
-                const val = parseAmount(flows[fi].getAttribute('aria-label') || '');
-                if (val > 0) { supplierMax = val; break; }
-            }
-            if (supplierMax <= 0) continue;
-
             // Schritt 1: Eingabefeld der MAX-Ware fokussieren → committed vorherige Werte
             inputContainer.focus();
             await wait(100);
 
             // Schritt 2: MAX-Button klicken
-            const maxBtn = Array.from(rowEl.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX');
+            // Primär: direkt im parentElement suchen (DOM-Analyse: depth=1)
+            const parent = inputContainer.parentElement;
+            let maxBtn = parent ? Array.from(parent.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX') : null;
+            // Fallback: rowEl durchsuchen (falls DOM-Struktur variiert)
+            if (!maxBtn && rowEl) {
+                maxBtn = Array.from(rowEl.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX');
+            }
+
             if (maxBtn) {
-                console.log(`  ${maxGoodName}: MAX-Button klicken. (Lieferant hat ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
+                // Lieferanten-Bestand für Logging und Loop-Counter
+                let supplierMax = 0;
+                const flows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue')) : [];
+                for (let fi = 0; fi < flows.length; fi++) {
+                    if (inputContainer.contains(flows[fi])) continue;
+                    supplierMax = getNumberFromFlow(flows[fi]); // erster = Bestand
+                    break;
+                }
+                console.log(`  ${maxGoodName}: MAX-Button klicken. (Lieferant Bestand: ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
                 simulateClick(maxBtn);
                 maxButtonClicked = true;
-                maxGoodRemaining -= supplierMax;
+                maxGoodRemaining -= supplierMax || 1; // Fallback: mind. 1 abziehen damit Loop endet
                 await wait(200);
+            } else {
+                console.warn(`[LEA Auto Fill] MAX-Button für Lieferant nicht gefunden (rowEl-Klassen: ${rowEl?.className?.slice(0, 60)})`);
             }
         }
 
