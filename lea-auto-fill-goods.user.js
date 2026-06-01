@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.5
+// @version      1.1.6
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -97,7 +97,7 @@
                 });
 
                 // Suffix-Symbol (K, M, etc.) aus der rechten Sektion
-                const suffixEl = shadowRoot.querySelector('[part="symbol suffix"] .symbol__value');
+                const suffixEl = shadowRoot.querySelector('[part~="suffix"]');
                 const suffix = suffixEl ? suffixEl.textContent.trim() : '';
 
                 const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
@@ -308,15 +308,14 @@
             if (!(imgSrc in remaining)) continue;
             if (remaining[imgSrc] <= 0) continue;
 
-            // Lieferant-Bestand: ERSTER non-input flow = aktueller Lagerbestand des Lieferanten.
-            // DOM-Reihenfolge: [Bestand, Kapazität, Input] → vorwärts iterieren!
-            // (Rückwärts würde die Kapazität lesen, nicht den verfügbaren Bestand.)
+            // Lieferant-Bestand: LETZTER non-input flow = aktueller Lagerbestand des Lieferanten.
+            // Die Kachel zeigt [Bereits angefordert (meist 0) / Gesamtbestand]. Der letzte non-input flow ist der Bestand.
+            const supplierFlows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue'))
+                .filter(f => !inputContainer.contains(f)) : [];
             let supplierMax = 0;
-            const flows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue')) : [];
-            for (let fi = 0; fi < flows.length; fi++) {
-                if (inputContainer.contains(flows[fi])) continue;
-                supplierMax = getNumberFromFlow(flows[fi]); // erster = Bestand
-                break;
+            if (supplierFlows.length > 0) {
+                const targetFlow = supplierFlows[supplierFlows.length - 1];
+                supplierMax = getNumberFromFlow(targetFlow);
             }
             if (supplierMax <= 0) continue; // Lieferant hat nichts auf Lager
 
@@ -362,12 +361,12 @@
 
             if (maxBtn) {
                 // Lieferanten-Bestand für Logging und Loop-Counter
+                const supplierFlows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue'))
+                    .filter(f => !inputContainer.contains(f)) : [];
                 let supplierMax = 0;
-                const flows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue')) : [];
-                for (let fi = 0; fi < flows.length; fi++) {
-                    if (inputContainer.contains(flows[fi])) continue;
-                    supplierMax = getNumberFromFlow(flows[fi]); // erster = Bestand
-                    break;
+                if (supplierFlows.length > 0) {
+                    const targetFlow = supplierFlows[supplierFlows.length - 1];
+                    supplierMax = getNumberFromFlow(targetFlow);
                 }
                 console.log(`  ${maxGoodName}: MAX-Button klicken. (Lieferant Bestand: ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
                 simulateClick(maxBtn);
