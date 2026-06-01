@@ -7,6 +7,7 @@
 // @description  Aendert die Produktion in den Produktionslinien per Knopfdruck.
 // @run-at       document-idle
 // @grant        none
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-produktion-change.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-produktion-change.user.js
 // ==/UserScript==
@@ -21,8 +22,8 @@
     const MENU_ID = 'lea-prod-change-menu';
 
     // Selektoren - Gebäudeübersicht
-    const SELECTOR_MANAGE_BTN = 'button[data-tutorial-id="manage-building-button"]';
-    const SELECTOR_SETTINGS_BTN = 'button[data-tutorial-id="factory-line-settings-button"]';
+    const SELECTOR_MANAGE_BTN = LEA_CONFIG.MANAGE_BUILDING_SELECTOR;
+    const SELECTOR_SETTINGS_BTN = LEA_CONFIG.SETTINGS_BTN_SELECTOR;
     const SELECTOR_UNLOCK_BTN = '[data-tutorial-id="factory-line-unlock"]';
     const SELECTOR_PANEL_HEADER = '.panel-header p';
 
@@ -30,7 +31,7 @@
     const SELECTOR_STOP_BTN = '[data-tutorial-id="factory-line-configuration-stop-button"]';
     const SELECTOR_RESOURCE_BTN = '[data-tutorial-id="factory-line-configuration-resource-button"]';
     const SELECTOR_SAVE_BTN = 'button[data-tutorial-id="factory-line-save-changes"]';
-    const SELECTOR_BACK_BTN = '.bottom-navigation button[show-divider]';
+    const SELECTOR_BACK_BTN = LEA_CONFIG.BACK_BTN_SELECTOR;
     const SELECTOR_DIALOG = '.bb-dialog-modal';
 
     // Cache für Gebäude-Produkte (Name -> { products: [...], stopImgSrc: ... })
@@ -457,36 +458,7 @@
     // SCHRITT 2: Kern-Logik für den Produktwechsel
     // -----------------------------------------------------------------------
 
-    /**
-     * Wartet darauf, dass ein Element auf dem Bildschirm erscheint.
-     * @param {string} selector - CSS-Selektor
-     * @param {number} timeoutMs - Max Wartezeit
-     * @returns {Promise<boolean>} true wenn gefunden, false bei Timeout
-     */
-    async function waitForElementToAppear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (!document.querySelector(selector)) {
-            if (Date.now() - startTime > timeoutMs) return false;
-            await new Promise(r => setTimeout(r, 50));
-        }
-        return true;
-    }
 
-    /**
-     * Wartet darauf, dass ein Element komplett vom Bildschirm verschwindet.
-     * @param {string} selector - CSS-Selektor
-     * @param {number} timeoutMs - Max Wartezeit
-     */
-    async function waitForElementToDisappear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (document.querySelector(selector)) {
-            if (Date.now() - startTime > timeoutMs) {
-                console.warn(`[LEA Auto Prod Change] Timeout: Element ${selector} ist nicht verschwunden.`);
-                break;
-            }
-            await new Promise(r => setTimeout(r, 50));
-        }
-    }
 
     /**
      * Führt die ausgewählte Aktion für alle Produktionslinien des Gebäudes aus.

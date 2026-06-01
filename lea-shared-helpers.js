@@ -1,0 +1,223 @@
+// ==UserScript==
+// @name         LEA Shared Helpers
+// @namespace    lea-tools
+// @version      1.0.0
+// @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
+// @author       DonSanchos
+// @match        https://game.logistics-empire.com/*
+// @grant        none
+// ==/UserScript==
+
+// =========================================================================
+// GETEILTE KONSTANTEN
+// =========================================================================
+var LEA_CONFIG = {
+    MAX_DELIVERY_TIME_MINUTES: 15,
+    INPUT_CONTAINER_SELECTOR: '.bb-label-container[tabindex="0"]',
+    ASSISTANT_BTN_SELECTOR: 'button[data-tutorial-id="transport-assistant"]',
+    FILTER_BAR_SELECTOR: '.bb-filter-and-sort-bar',
+    MANAGE_BUILDING_SELECTOR: 'button[data-tutorial-id="manage-building-button"]',
+    SETTINGS_BTN_SELECTOR: 'button[data-tutorial-id="factory-line-settings-button"]',
+    BACK_BTN_SELECTOR: '.bottom-navigation button[show-divider]',
+    DIALOG_SELECTOR: '.bb-dialog',
+
+    // Assistenten-Buttons (Bilder zur Erkennung)
+    IMG_AUTO_SELECT: 'auto_select',
+    IMG_CONTINUE: 'button-continue',
+    IMG_IN_PROGRESS: 'in_progress',
+
+    // Handelszentrum-Spezifisches
+    ALL_REWARDS_BTN_SELECTOR: 'button.variant--normal img[src*="collect_order"]',
+    HANDELSZENTRUM_HEADER_SRC: 'img[src*="page_header_orders-"]'
+};
+
+// =========================================================================
+// GEMEINSAME HILFSFUNKTIONEN
+// =========================================================================
+
+// Basis Wartefunktion
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Wartet auf das Erscheinen eines Elements im DOM. Optional mit Abbruchbedingung (z.B. stopRequested)
+async function waitForElementToAppear(selector, timeoutMs = 3000, checkCancel = null) {
+    const startTime = Date.now();
+    while (!document.querySelector(selector)) {
+        if (checkCancel && checkCancel()) throw new Error('STOP');
+        if (Date.now() - startTime > timeoutMs) return false;
+        await new Promise(r => setTimeout(r, 50));
+    }
+    return true;
+}
+
+// Wartet auf das Verschwinden eines Elements aus dem DOM. Optional mit Abbruchbedingung.
+async function waitForElementToDisappear(selector, timeoutMs = 3000, checkCancel = null) {
+    const startTime = Date.now();
+    while (document.querySelector(selector)) {
+        if (checkCancel && checkCancel()) throw new Error('STOP');
+        if (Date.now() - startTime > timeoutMs) {
+            console.warn(`[LEA Helpers] Timeout: Element ${selector} ist nicht verschwunden.`);
+            break;
+        }
+        await new Promise(r => setTimeout(r, 50));
+    }
+}
+
+// Simuliert MouseEvents zum Klicken auf ein Element
+function simulateClick(element) {
+    if (!element) return;
+    ['mousedown', 'mouseup', 'click'].forEach(eventType => {
+        element.dispatchEvent(new MouseEvent(eventType, {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        }));
+    });
+}
+
+// Wandelt einen Zeitstring (z. B. "1h 15m 30s") in Sekunden um
+function parseTimeToSeconds(timeStr) {
+    let totalSeconds = 0;
+    timeStr.trim().split(' ').forEach(part => {
+        const value = parseInt(part);
+        if (isNaN(value)) return;
+        if (part.includes('h')) totalSeconds += value * 3600;
+        else if (part.includes('m')) totalSeconds += value * 60;
+        else if (part.includes('s')) totalSeconds += value;
+    });
+    return totalSeconds;
+}
+
+// Liest die benötigte Lieferzeit aus dem DOM
+function getDeliveryTimeSeconds() {
+    const match = (document.body.textContent || '').match(/Zeit ben[öo]tigt\s+((?:\d+\s*[hms]\s*){1,3})/i);
+    if (match && match[1]) {
+        return { seconds: parseTimeToSeconds(match[1]), timeString: match[1].trim() };
+    }
+    return null;
+}
+
+// Zeigt eine temporäre Toast-Benachrichtigung an
+function showToast(msg, toastId = 'lea-toast', duration = 2000) {
+    const existing = document.getElementById(toastId);
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = 'lea-toast';
+    toast.textContent = msg;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        const el = document.getElementById(toastId);
+        if (el) {
+            el.style.opacity = '0';
+            setTimeout(() => {
+                if (document.getElementById(toastId) === el) el.remove();
+            }, 300);
+        }
+    }, duration);
+}
+
+// Formatiert Textmengen (z.B. "1.5K", "3M") in Ganzzahlen
+function parseAmount(str) {
+    if (!str) return 0;
+    str = str.toUpperCase().trim();
+    let multiplier = 1;
+    if (str.endsWith('K')) {
+        multiplier = 1000;
+        str = str.slice(0, -1);
+    } else if (str.endsWith('M')) {
+        multiplier = 1000000;
+        str = str.slice(0, -1);
+    }
+    str = str.replace(',', '.');
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Math.floor(num * multiplier);
+}
+
+// Liest den Zahlenwert aus einem number-flow-vue Element aus
+function getNumberFromFlow(element) {
+    if (!element) return 0;
+
+    // 1. aria-label
+    const ariaLabel = element.getAttribute('aria-label');
+    if (ariaLabel && ariaLabel.trim() !== '') return parseAmount(ariaLabel);
+
+    // 2. Shadow DOM
+    const shadowRoot = element.shadowRoot;
+    if (shadowRoot) {
+        const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
+        let intStr = '';
+        intDigits.forEach(d => {
+            const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+            if (m) intStr += m[1];
+        });
+
+        if (intStr) {
+            const fracDigits = shadowRoot.querySelectorAll('[part~="fraction-digit"]');
+            let fracStr = '';
+            fracDigits.forEach(d => {
+                const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                if (m) fracStr += m[1];
+            });
+
+            const suffixEl = shadowRoot.querySelector('[part~="suffix"]');
+            const suffix = suffixEl ? suffixEl.textContent.trim() : '';
+
+            const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
+            return parseAmount(numStr);
+        }
+    }
+
+    // 3. Vue 3 Fallback
+    const vueKey = Object.keys(element).find(k => k.startsWith('__vue'));
+    if (vueKey) {
+        const vm = element[vueKey];
+        const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value;
+        if (val !== undefined && val !== null && !isNaN(Number(val))) {
+            return Math.abs(Math.round(Number(val)));
+        }
+    }
+
+    return 0;
+}
+
+// Simuliert die Texteingabe in ein Custom Vue-Eingabefeld (div mit tabindex="0")
+async function simulateTyping(element, text) {
+    if (!element) return;
+
+    element.focus();
+    await wait(50);
+
+    const str = text.toString();
+
+    document.execCommand('selectAll', false, null);
+    const inserted = document.execCommand('insertText', false, str);
+
+    if (!inserted) {
+        const targets = [element, document];
+        for (let i = 0; i < 6; i++) {
+            targets.forEach(t => {
+                t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true }));
+                t.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true }));
+            });
+        }
+        for (const char of str) {
+            const keyCode = char.charCodeAt(0);
+            targets.forEach(t => {
+                t.dispatchEvent(new KeyboardEvent('keydown', { key: char, code: 'Digit' + char, keyCode, which: keyCode, bubbles: true, cancelable: true }));
+                t.dispatchEvent(new KeyboardEvent('keypress', { key: char, code: 'Digit' + char, keyCode, which: keyCode, charCode: keyCode, bubbles: true, cancelable: true }));
+                t.dispatchEvent(new KeyboardEvent('keyup', { key: char, code: 'Digit' + char, keyCode, which: keyCode, bubbles: true, cancelable: true }));
+            });
+        }
+    }
+
+    [element, document].forEach(t => {
+        t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+        t.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+    });
+    await wait(30);
+}

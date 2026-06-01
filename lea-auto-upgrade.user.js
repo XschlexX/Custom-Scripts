@@ -7,6 +7,7 @@
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
 // @grant        none
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-upgrade.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-upgrade.user.js
 // ==/UserScript==
@@ -22,12 +23,12 @@
     const INJECT_BTN_ID = 'lea-upgrade-scan-btn';
 
     // UI Elemente im Gebäude
-    const SETTINGS_BTN_SELECTOR = 'button[data-tutorial-id="factory-line-settings-button"]';
+    const SETTINGS_BTN_SELECTOR = LEA_CONFIG.SETTINGS_BTN_SELECTOR;
     const IMPROVEMENT_ARROW_SRC = 'improvement_arrow';
-    const BACK_BTN_SELECTOR = '.bottom-navigation button[show-divider]';
+    const BACK_BTN_SELECTOR = LEA_CONFIG.BACK_BTN_SELECTOR;
 
     // Dialog
-    const DIALOG_SELECTOR = '.bb-dialog';
+    const DIALOG_SELECTOR = LEA_CONFIG.DIALOG_SELECTOR;
     const TITLE_SELECTOR = '.text-h1';
 
     // Status
@@ -80,64 +81,10 @@
     // HILFSFUNKTIONEN (Warten & UI-Prüfungen)
     // -----------------------------------------------------------------------
 
-    /**
-     * Wartet darauf, dass ein Element auf dem Bildschirm erscheint.
-     * @param {string} selector - CSS-Selektor
-     * @param {number} timeoutMs - Max Wartezeit
-     * @returns {Promise<boolean>} true wenn gefunden, false bei Timeout
-     */
-    async function waitForElementToAppear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (!document.querySelector(selector)) {
-            if (stopRequested) throw new Error('STOP');
-            if (Date.now() - startTime > timeoutMs) return false;
-            await new Promise(r => setTimeout(r, 50));
-        }
-        return true;
-    }
-
-    /**
-     * Wartet darauf, dass ein Element komplett vom Bildschirm verschwindet.
-     * @param {string} selector - CSS-Selektor
-     * @param {number} timeoutMs - Max Wartezeit
-     */
-    async function waitForElementToDisappear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (document.querySelector(selector)) {
-            if (stopRequested) throw new Error('STOP');
-            if (Date.now() - startTime > timeoutMs) {
-                console.warn(`[LEA Upgrade] Timeout: Element ${selector} ist nicht verschwunden.`);
-                break;
-            }
-            await new Promise(r => setTimeout(r, 50));
-        }
-    }
-
     function isUpgradeOverviewOpen() {
         return !!document.querySelector('a[href="#/buildings/upgrades"].router-link-exact-active');
     }
 
-    function showToast(msg) {
-        const existing = document.getElementById('lea-toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'lea-toast';
-        toast.className = 'lea-toast';
-        toast.textContent = msg;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            const el = document.getElementById('lea-toast');
-            if (el) {
-                el.style.opacity = '0';
-                setTimeout(() => {
-                    if (document.getElementById('lea-toast') === el) el.remove();
-                }, 300);
-            }
-        }, 2000);
-    }
 
     // -----------------------------------------------------------------------
     // SUCH-FUNKTIONEN FÜR UPGRADES
@@ -257,7 +204,7 @@
 
     async function handleUpgradeDialog() {
         // Warte auf Dialog (max 1500ms)
-        const dialogAppeared = await waitForElementToAppear(DIALOG_SELECTOR, 1500);
+        const dialogAppeared = await waitForElementToAppear(DIALOG_SELECTOR, 1500, () => stopRequested);
         if (!dialogAppeared) return;
 
         // waitForElementToAppear garantiert, dass das Element existiert
@@ -289,7 +236,7 @@
         if (targetBtn && !targetBtn.hasAttribute('disabled')) {
             console.log('[LEA Upgrade] Klicke Dialog-Bestätigung...');
             targetBtn.click();
-            await waitForElementToDisappear(DIALOG_SELECTOR, 3000);
+            await waitForElementToDisappear(DIALOG_SELECTOR, 3000, () => stopRequested);
         } else {
             // Fallback: Wenn wir es nicht klicken können (zu wenig Geld), Dialog schließen
             console.warn('[LEA Upgrade] Dialog kann nicht bestätigt werden. Schließe ihn...');
@@ -298,7 +245,7 @@
                 !b.hasAttribute('disabled')
             );
             if (cancelBtn) cancelBtn.click();
-            await waitForElementToDisappear(DIALOG_SELECTOR, 3000);
+            await waitForElementToDisappear(DIALOG_SELECTOR, 3000, () => stopRequested);
         }
     }
 
@@ -397,7 +344,7 @@
                         lineTarget.click();
 
                         // Warte bis Linieneinstellungen offen sind
-                        await waitForElementToAppear('.improvements-entry', 2000);
+                        await waitForElementToAppear('.improvements-entry', 2000, () => stopRequested);
                         await new Promise(r => setTimeout(r, 300));
 
                         // Alle Verbesserungen & gesperrte Produkte in dieser Linie abarbeiten
@@ -432,7 +379,7 @@
                         if (backBtn) {
                             console.log('[LEA Upgrade] Verlasse Linieneinstellungen...');
                             backBtn.click();
-                            await waitForElementToDisappear('.improvements-entry', 2000);
+                            await waitForElementToDisappear('.improvements-entry', 2000, () => stopRequested);
                             await new Promise(r => setTimeout(r, 500));
                         }
 
@@ -460,7 +407,7 @@
                     const firstLineBtn = findFirstSettingsBtn();
                     if (firstLineBtn) {
                         firstLineBtn.click();
-                        await waitForElementToAppear('.improvements-entry', 2000);
+                        await waitForElementToAppear('.improvements-entry', 2000, () => stopRequested);
                         await new Promise(r => setTimeout(r, 300));
 
                         let lineCounter = 0;
@@ -481,7 +428,7 @@
                         if (backBtnLine1) {
                             console.log('[LEA Upgrade] Verlasse Linie 1...');
                             backBtnLine1.click();
-                            await waitForElementToDisappear('.improvements-entry', 2000);
+                            await waitForElementToDisappear('.improvements-entry', 2000, () => stopRequested);
                             await new Promise(r => setTimeout(r, 500));
                         }
                     }

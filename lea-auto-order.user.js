@@ -7,6 +7,7 @@
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // ==/UserScript==
@@ -17,69 +18,21 @@
     // =========================================================================
     // KONFIGURATION & SELEKTOREN
     // =========================================================================
-    const MAX_DELIVERY_TIME_MINUTES = 15; // Globale Konstante für die maximale Lieferzeit
+    const MAX_DELIVERY_TIME_MINUTES = LEA_CONFIG.MAX_DELIVERY_TIME_MINUTES;
 
-    const ASSISTANT_BTN_SELECTOR = 'button[data-tutorial-id="transport-assistant"]';
-    const ALL_REWARDS_BTN_SELECTOR = 'button.variant--normal img[src*="collect_order"]';
-    const HANDELSZENTRUM_HEADER_SRC = 'img[src*="page_header_orders-"]';
-    const FILTER_BAR_SELECTOR = '.bb-filter-and-sort-bar';
+    const ASSISTANT_BTN_SELECTOR = LEA_CONFIG.ASSISTANT_BTN_SELECTOR;
+    const ALL_REWARDS_BTN_SELECTOR = LEA_CONFIG.ALL_REWARDS_BTN_SELECTOR;
+    const HANDELSZENTRUM_HEADER_SRC = LEA_CONFIG.HANDELSZENTRUM_HEADER_SRC;
+    const FILTER_BAR_SELECTOR = LEA_CONFIG.FILTER_BAR_SELECTOR;
     const INJECT_BTN_ID = 'lef-auto-start-btn';
 
     // Bild-Dateinamen für Buttons (können sich bei Spiel-Updates ändern)
-    const IMG_AUTO_SELECT = 'auto_select';      // Frau-Icon (Automatisch wählen)
-    const IMG_CONTINUE = 'button-continue';     // Doppelpfeil-Icon (Weiter/Starten)
-    const IMG_IN_PROGRESS = 'in_progress';      // Fortschritts-Icon
+    const IMG_AUTO_SELECT = LEA_CONFIG.IMG_AUTO_SELECT;      // Frau-Icon (Automatisch wählen)
+    const IMG_CONTINUE = LEA_CONFIG.IMG_CONTINUE;            // Doppelpfeil-Icon (Weiter/Starten)
+    const IMG_IN_PROGRESS = LEA_CONFIG.IMG_IN_PROGRESS;      // Fortschritts-Icon
 
     let isAutoRunning = false;
     let stopRequested = false;
-
-    // =========================================================================
-    // HILFSFUNKTIONEN (Warten & Zeit)
-    // =========================================================================
-
-    async function waitForElementToAppear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (!document.querySelector(selector)) {
-            if (Date.now() - startTime > timeoutMs) return false;
-            await new Promise(r => setTimeout(r, 50));
-        }
-        return true;
-    }
-
-    async function waitForElementToDisappear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (document.querySelector(selector)) {
-            if (Date.now() - startTime > timeoutMs) {
-                console.warn(`[LEF Auto Assistant] Timeout: Element ${selector} ist nicht verschwunden.`);
-                break;
-            }
-            await new Promise(r => setTimeout(r, 50));
-        }
-    }
-
-    function parseTimeToSeconds(timeStr) {
-        let totalSeconds = 0;
-        timeStr.trim().split(' ').forEach(part => {
-            const value = parseInt(part);
-            if (isNaN(value)) return;
-            if (part.includes('h')) totalSeconds += value * 3600;
-            else if (part.includes('m')) totalSeconds += value * 60;
-            else if (part.includes('s')) totalSeconds += value;
-        });
-        return totalSeconds;
-    }
-
-    function getDeliveryTimeSeconds() {
-        const match = (document.body.textContent || '').match(/Zeit ben[öo]tigt\s+((?:\d+\s*[hms]\s*){1,3})/i);
-        if (match && match[1]) {
-            return { seconds: parseTimeToSeconds(match[1]), timeString: match[1].trim() };
-        }
-        return null;
-    }
-
-    function isHandelszentrumOpen() {
-        return !!document.querySelector(HANDELSZENTRUM_HEADER_SRC);
-    }
 
     // =========================================================================
     // UI: WARN-POPUP (Passiv für manuelles Spielen)
@@ -126,31 +79,10 @@
         }
     }
 
-    // =========================================================================
-    // UI: BENACHRICHTIGUNGEN (Toasts)
-    // =========================================================================
-
-    function showToast(msg) {
-        const existing = document.getElementById('lef-toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'lef-toast';
-        toast.className = 'lea-toast';
-        toast.textContent = msg;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            const el = document.getElementById('lef-toast');
-            if (el) {
-                el.style.opacity = '0';
-                setTimeout(() => {
-                    if (document.getElementById('lef-toast') === el) el.remove();
-                }, 300);
-            }
-        }, 2000);
+    function isHandelszentrumOpen() {
+        return !!document.querySelector(HANDELSZENTRUM_HEADER_SRC);
     }
+
 
     // =========================================================================
     // HAUPT-LOGIK (ASYNC FLOW)

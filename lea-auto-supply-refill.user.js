@@ -7,6 +7,7 @@
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
 // @grant        none
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // ==/UserScript==
@@ -17,98 +18,14 @@
     // =========================================================================
     // KONFIGURATION & SELEKTOREN
     // =========================================================================
-    const MAX_DELIVERY_TIME_MINUTES = 15; // Maximale Lieferzeit in Minuten
-    const FILTER_BAR_SELECTOR = '.bb-filter-and-sort-bar';
+    const MAX_DELIVERY_TIME_MINUTES = LEA_CONFIG.MAX_DELIVERY_TIME_MINUTES;
+    const FILTER_BAR_SELECTOR = LEA_CONFIG.FILTER_BAR_SELECTOR;
     const INJECT_BTN_ID = 'lea-supply-refill-btn';
     const FLOATING_STOP_BTN_ID = 'lea-supply-floating-stop-btn';
 
     let isAutoRunning = false;
     let stopRequested = false;
 
-    // =========================================================================
-    // HILFSFUNKTIONEN (Warten & Zeit)
-    // =========================================================================
-
-    function wait(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    async function waitForElementToAppear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (!document.querySelector(selector)) {
-            if (Date.now() - startTime > timeoutMs) return false;
-            await wait(50);
-        }
-        return true;
-    }
-
-    async function waitForElementToDisappear(selector, timeoutMs = 3000) {
-        const startTime = Date.now();
-        while (document.querySelector(selector)) {
-            if (Date.now() - startTime > timeoutMs) {
-                console.warn(`[LEA Supply Refill] Timeout: Element ${selector} ist nicht verschwunden.`);
-                break;
-            }
-            await wait(50);
-        }
-    }
-
-    function simulateClick(element) {
-        if (!element) return;
-        ['mousedown', 'mouseup', 'click'].forEach(eventType => {
-            element.dispatchEvent(new MouseEvent(eventType, {
-                bubbles: true,
-                cancelable: true,
-                view: window
-            }));
-        });
-    }
-
-    function parseTimeToSeconds(timeStr) {
-        let totalSeconds = 0;
-        timeStr.trim().split(' ').forEach(part => {
-            const value = parseInt(part);
-            if (isNaN(value)) return;
-            if (part.includes('h')) totalSeconds += value * 3600;
-            else if (part.includes('m')) totalSeconds += value * 60;
-            else if (part.includes('s')) totalSeconds += value;
-        });
-        return totalSeconds;
-    }
-
-    function getDeliveryTimeSeconds() {
-        const match = (document.body.textContent || '').match(/Zeit ben[öo]tigt\s+((?:\d+\s*[hms]\s*){1,3})/i);
-        if (match && match[1]) {
-            return { seconds: parseTimeToSeconds(match[1]), timeString: match[1].trim() };
-        }
-        return null;
-    }
-
-    // =========================================================================
-    // UI: TOAST OVERLAY
-    // =========================================================================
-
-    function showToast(msg) {
-        const existing = document.getElementById('lea-supply-toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'lea-supply-toast';
-        toast.className = 'lea-toast';
-        toast.textContent = msg;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            const el = document.getElementById('lea-supply-toast');
-            if (el) {
-                el.style.opacity = '0';
-                setTimeout(() => {
-                    if (document.getElementById('lea-supply-toast') === el) el.remove();
-                }, 300);
-            }
-        }, 2500);
-    }
 
     // =========================================================================
     // NAVIGATIONS-HILFEN (Suchen & Zurückgehen)
@@ -180,7 +97,7 @@
         for (let i = 0; i < 4; i++) {
             const pageText = document.body.textContent || '';
             const isSubWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität|Angeforderte Waren|Waren im Lager/);
-            const hasAssistantBtn = !!document.querySelector('button[data-tutorial-id="transport-assistant"]');
+            const hasAssistantBtn = !!document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
 
             if (!isSubWindow && !hasAssistantBtn) {
                 break;
@@ -210,7 +127,7 @@
         while (stepCount < 15) {
             if (stopRequested) return { status: 'stopped' };
 
-            const currentBtn = document.querySelector('button[data-tutorial-id="transport-assistant"]');
+            const currentBtn = document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
             if (!currentBtn) {
                 return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'success' };
             }
@@ -221,22 +138,22 @@
 
             if (!isVehicleWindow) {
                 // Phase 1: Produktauswahl
-                if (src.includes('auto_select')) {
+                if (src.includes(LEA_CONFIG.IMG_AUTO_SELECT)) {
                     console.log('[LEA Supply Refill] Phase 1: Klicke Frau (Produkte automatisch wählen)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button-continue"]', 2000);
-                } else if (src.includes('button-continue')) {
+                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_CONTINUE}"]`, 2000);
+                } else if (src.includes(LEA_CONFIG.IMG_CONTINUE)) {
                     console.log('[LEA Supply Refill] Phase 1: Klicke Doppelpfeil (Weiter)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="auto_select"]', 2000);
+                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_AUTO_SELECT}"]`, 2000);
                 }
             } else {
                 // Phase 2: Fahrzeugauswahl (inklusive Zeit-Check!)
-                if (src.includes('auto_select')) {
+                if (src.includes(LEA_CONFIG.IMG_AUTO_SELECT)) {
                     console.log('[LEA Supply Refill] Phase 2: Klicke Frau (Fahrzeuge automatisch wählen)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear('button[data-tutorial-id="transport-assistant"] img[src*="button-continue"]', 2000);
-                } else if (src.includes('button-continue')) {
+                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_CONTINUE}"]`, 2000);
+                } else if (src.includes(LEA_CONFIG.IMG_CONTINUE)) {
                     let timeResult = getDeliveryTimeSeconds();
                     let waitTime = 0;
                     while (!timeResult && waitTime < 2000) {
@@ -258,7 +175,7 @@
                     }
 
                     simulateClick(currentBtn);
-                    await waitForElementToDisappear('button[data-tutorial-id="transport-assistant"]', 3000);
+                    await waitForElementToDisappear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 3000);
                     return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'success' };
                 }
             }
@@ -451,7 +368,7 @@
                 simulateClick(internBtn);
 
                 // Warten auf Assistent
-                const assistantOpened = await waitForElementToAppear('button[data-tutorial-id="transport-assistant"]', 4000);
+                const assistantOpened = await waitForElementToAppear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 4000);
                 if (!assistantOpened) {
                     console.warn('[LEA Supply Refill] Transport-Assistent nicht erschienen.');
                     stats.failed++;
