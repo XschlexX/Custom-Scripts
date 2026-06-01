@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.4
+// @version      1.1.5
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -63,27 +63,59 @@
 
     // Extracts the displayed number from a <number-flow-vue> element.
     // number-flow-vue renders in Declarative Shadow DOM – aria-label and textContent are always empty.
-    // The actual digit values are stored as CSS custom property --current on each .digit element.
-    // Example: <span class="digit" style="--current: 9"> means the digit "9" is shown.
+    // Strategy:
+    //   1. aria-label (zukunftssicher)
+    //   2. Shadow DOM: liest --current aus Integer- UND Fraction-Digits + Suffix (K/M)
+    //      z.B. 3 Integer-Digits [1, 2, 0] + Fraction [] + kein Suffix → "120"
+    //      z.B. 1 Integer-Digit  [1]       + Fraction [2] + Suffix "K"    → "1.2K" → 1200
+    //   3. Vue 3 Component Instance: vm.props.value (Fallback falls shadowRoot null)
     function getNumberFromFlow(element) {
         if (!element) return 0;
-        // Try aria-label first (future-proof if the component ever populates it)
+
+        // 1. aria-label
         const ariaLabel = element.getAttribute('aria-label');
-        if (ariaLabel && ariaLabel.trim() !== '') {
-            return parseAmount(ariaLabel);
-        }
-        // Read from Shadow DOM via --current CSS variable on [part~="integer-digit"] elements
+        if (ariaLabel && ariaLabel.trim() !== '') return parseAmount(ariaLabel);
+
+        // 2. Shadow DOM
         const shadowRoot = element.shadowRoot;
-        if (!shadowRoot) return 0;
-        const digits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
-        if (digits.length === 0) return 0;
-        let numStr = '';
-        digits.forEach(digit => {
-            const style = digit.getAttribute('style') || '';
-            const match = style.match(/--current:\s*(\d+)/);
-            if (match) numStr += match[1];
-        });
-        return numStr ? parseInt(numStr, 10) : 0;
+        if (shadowRoot) {
+            // Integer-Stellen
+            const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
+            let intStr = '';
+            intDigits.forEach(d => {
+                const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                if (m) intStr += m[1];
+            });
+
+            if (intStr) {
+                // Fraction-Stellen (für Werte wie "1,2K")
+                const fracDigits = shadowRoot.querySelectorAll('[part~="fraction-digit"]');
+                let fracStr = '';
+                fracDigits.forEach(d => {
+                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                    if (m) fracStr += m[1];
+                });
+
+                // Suffix-Symbol (K, M, etc.) aus der rechten Sektion
+                const suffixEl = shadowRoot.querySelector('[part="symbol suffix"] .symbol__value');
+                const suffix = suffixEl ? suffixEl.textContent.trim() : '';
+
+                const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
+                return parseAmount(numStr);
+            }
+        }
+
+        // 3. Vue 3 Component Instance (Fallback)
+        const vueKey = Object.keys(element).find(k => k.startsWith('__vue'));
+        if (vueKey) {
+            const vm = element[vueKey];
+            const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value;
+            if (val !== undefined && val !== null && !isNaN(Number(val))) {
+                return Math.abs(Math.round(Number(val)));
+            }
+        }
+
+        return 0;
     }
 
     // Simulate clicking on an element
