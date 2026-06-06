@@ -324,25 +324,23 @@
             while (true) {
                 if (stopRequested) break;
 
-                // Warte bis mindestens eine Karte im DOM ist (max. 4s)
+                // Warte bis die nächste Karte (index > lastProcessedIndex) im DOM sichtbar ist (max. 4s).
+                // Wichtig: Nach goBack() zeigt das Spiel zuerst das gerade besuchte Gebäude (= lastProcessedIndex)
+                // und lädt das nächste erst etwas später. Daher auf den höheren Index warten.
                 let indexedAfCards = [];
                 const startLoadTime = Date.now();
                 while (Date.now() - startLoadTime < 4000) {
                     indexedAfCards = getIndexedAfCards();
-                    if (indexedAfCards.length > 0) break;
+                    const hasNext = indexedAfCards.some(item => item.index > lastProcessedIndex);
+                    if (hasNext) break;
                     await wait(100);
-                }
-
-                if (indexedAfCards.length === 0) {
-                    console.log('[LEA Supply Refill] Keine (AF)-Gebäude im DOM gefunden.');
-                    break;
                 }
 
                 // Nächstes Gebäude: das mit dem kleinsten data-index > lastProcessedIndex
                 const next = indexedAfCards.find(item => item.index > lastProcessedIndex);
 
                 if (!next) {
-                    console.log(`[LEA Supply Refill] Kein höherer Index als ${lastProcessedIndex} sichtbar. Ende der Liste.`);
+                    console.log(`[LEA Supply Refill] Kein höherer Index als ${lastProcessedIndex} gefunden. Ende der Liste.`);
                     break;
                 }
 
