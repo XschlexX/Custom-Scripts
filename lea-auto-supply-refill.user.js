@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.4
+// @version      1.1.5
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -284,8 +284,10 @@
                 return;
             }
 
-            let currentIndex = 0;
+            const processedKeys = new Set();
             let consecutiveFailures = 0;
+            let lastDOMStateSignature = '';
+            let scrollAttemptsWithoutNewCards = 0;
 
             while (true) {
                 if (stopRequested) break;
@@ -300,28 +302,60 @@
                     return text.includes('(AF)');
                 });
 
-                console.log(`[LEA Supply Refill] Gefundene (AF)-Gebäude: ${afCards.length}, aktueller Index: ${currentIndex}`);
-
-                if (currentIndex >= afCards.length) {
-                    console.log('[LEA Supply Refill] Alle Gebäude abgearbeitet.');
-                    break;
+                // Finde das erste (AF)-Gebäude, das noch nicht verarbeitet wurde
+                let targetCard = null;
+                for (const card of afCards) {
+                    const cardKey = card.textContent.trim().replace(/\s+/g, ' ');
+                    if (!processedKeys.has(cardKey)) {
+                        targetCard = card;
+                        break;
+                    }
                 }
 
+                if (!targetCard) {
+                    // Alle derzeit sichtbaren (AF)-Gebäude wurden verarbeitet.
+                    // Wir scrollen ans Ende der sichtbaren Liste, um über Virtual Scrolling weitere zu laden.
+                    if (cards.length === 0) {
+                        console.log('[LEA Supply Refill] Keine Gebäude-Karten gefunden.');
+                        break;
+                    }
+
+                    // Vergleiche Signatur des DOM-Zustands, um unendliches Scrollen am Listenende zu verhindern
+                    const currentDOMStateSignature = cards.map(c => c.textContent.trim()).join('|||');
+                    if (currentDOMStateSignature === lastDOMStateSignature) {
+                        scrollAttemptsWithoutNewCards++;
+                        if (scrollAttemptsWithoutNewCards >= 3) {
+                            console.log('[LEA Supply Refill] Ende der Liste erreicht (keine neuen Karten nach Scrollen).');
+                            break;
+                        }
+                    } else {
+                        scrollAttemptsWithoutNewCards = 0;
+                    }
+                    lastDOMStateSignature = currentDOMStateSignature;
+
+                    console.log('[LEA Supply Refill] Scrolle nach unten für weitere Gebäude...');
+                    const lastCard = cards[cards.length - 1];
+                    lastCard.scrollIntoView({ block: 'center' });
+                    await wait(500);
+                    continue;
+                }
+
+                // Ein noch nicht verarbeitetes Gebäude wurde gefunden
                 stats.total++;
-                const currentCard = afCards[currentIndex];
+                const cardKey = targetCard.textContent.trim().replace(/\s+/g, ' ');
 
                 // Pfeil-Button finden
-                const arrowBtn = currentCard.querySelector('img[src*="to_quest_objective"]')?.closest('button');
+                const arrowBtn = targetCard.querySelector('img[src*="to_quest_objective"]')?.closest('button');
                 if (!arrowBtn) {
-                    console.warn(`[LEA Supply Refill] Kein Pfeil-Button für Gebäude an Index ${currentIndex} gefunden. Überspringe...`);
+                    console.warn('[LEA Supply Refill] Kein Pfeil-Button für Gebäude gefunden. Überspringe...');
                     stats.failed++;
-                    currentIndex++;
+                    processedKeys.add(cardKey);
                     continue;
                 }
 
                 // In das Gebäude reingehen
-                console.log(`[LEA Supply Refill] Betrete Gebäude ${currentIndex + 1}/${afCards.length}...`);
-                currentCard.scrollIntoView({ block: 'center' });
+                console.log(`[LEA Supply Refill] Betrete Gebäude (insgesamt geprüft: ${stats.total})...`);
+                targetCard.scrollIntoView({ block: 'center' });
                 await wait(100);
                 simulateClick(arrowBtn);
 
@@ -336,7 +370,7 @@
                         break;
                     }
                     await goBack();
-                    currentIndex++;
+                    processedKeys.add(cardKey);
                     continue;
                 }
                 consecutiveFailures = 0;
@@ -349,17 +383,17 @@
                     console.log('[LEA Supply Refill] Kein Button "Intern anfordern" gefunden. Gehe zurück.');
                     stats.alreadyFull++;
                     await goBack();
-                    currentIndex++;
+                    processedKeys.add(cardKey);
                     continue;
                 }
 
                 const isDisabled = internBtn.disabled || internBtn.getAttribute('disabled') !== null || internBtn.classList.contains('is-disabled');
 
                 if (isDisabled) {
-                    console.log(`[LEA Supply Refill] Gebäude ${currentIndex + 1} benötigt keinen Nachschub (ausgegraut).`);
+                    console.log('[LEA Supply Refill] Gebäude benötigt keinen Nachschub (ausgegraut).');
                     stats.alreadyFull++;
                     await goBack();
-                    currentIndex++;
+                    processedKeys.add(cardKey);
                     continue;
                 }
 
@@ -373,7 +407,7 @@
                     console.warn('[LEA Supply Refill] Transport-Assistent nicht erschienen.');
                     stats.failed++;
                     await goBack();
-                    currentIndex++;
+                    processedKeys.add(cardKey);
                     continue;
                 }
 
@@ -405,7 +439,7 @@
                 await goBack();
                 await wait(500);
 
-                currentIndex++;
+                processedKeys.add(cardKey);
             }
 
             if (stopRequested) {
