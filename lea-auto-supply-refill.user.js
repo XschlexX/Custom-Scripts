@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.9
+// @version      1.1.10
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -88,6 +88,25 @@
             el = el.parentElement;
         }
         return null;
+    }
+
+    /**
+     * Liest alle sichtbaren (AF)-Gebäudekarten aus dem Virtual-Scroll-DOM aus.
+     * Nutzt das data-index Attribut der virtuellen Listenzeilen als absolute Position.
+     * Gibt ein nach index sortiertes Array zurück: [{ index, card }]
+     */
+    function getIndexedAfCards() {
+        return Array.from(document.querySelectorAll('[data-index]'))
+            .map(el => ({
+                index: parseInt(el.getAttribute('data-index'), 10),
+                card: el.querySelector('[class*="building-card"]')
+            }))
+            .filter(item =>
+                !isNaN(item.index) &&
+                item.card !== null &&
+                item.card.textContent.toUpperCase().includes('(AF)')
+            )
+            .sort((a, b) => a.index - b.index);
     }
 
     async function waitForFactoryToLoad(timeoutMs = 4000) {
@@ -289,112 +308,56 @@
         };
 
         try {
+            // Suche einmalig am Start ausführen
             const searchSuccess = await triggerSearch('(AF)');
             if (!searchSuccess) {
                 showToast('Fehler: Suche konnte nicht gestartet werden.');
                 return;
             }
 
-            const processedKeys = new Set();
+            // Warte bis Karten im DOM erscheinen
+            await wait(400);
+
+            let lastProcessedIndex = -1;
             let consecutiveFailures = 0;
-            let scrollAttemptsWithoutNewCards = 0;
 
             while (true) {
                 if (stopRequested) break;
 
-                // Suche aktualisieren und Liste neu einlesen (wegen Virtual Scrolling und Navigations-Resets)
-                await triggerSearch('(AF)');
-                await wait(200);
-
-                // Warte dynamisch darauf, dass überhaupt Gebäudekarten im DOM vorhanden sind
-                let cards = [];
+                // Warte bis mindestens eine Karte im DOM ist (max. 4s)
+                let indexedAfCards = [];
                 const startLoadTime = Date.now();
                 while (Date.now() - startLoadTime < 4000) {
-                    cards = Array.from(document.querySelectorAll('[class*="building-card"]'));
-                    if (cards.length > 0) break;
+                    indexedAfCards = getIndexedAfCards();
+                    if (indexedAfCards.length > 0) break;
                     await wait(100);
                 }
 
-                const afCards = cards.filter(card => {
-                    const text = card.textContent || '';
-                    return text.toUpperCase().includes('(AF)');
-                });
-
-                // Finde das erste (AF)-Gebäude, das noch nicht verarbeitet wurde
-                let targetCard = null;
-                for (const card of afCards) {
-                    const cardKey = card.textContent.trim().replace(/\s+/g, ' ');
-                    if (!processedKeys.has(cardKey)) {
-                        targetCard = card;
-                        break;
-                    }
+                if (indexedAfCards.length === 0) {
+                    console.log('[LEA Supply Refill] Keine (AF)-Gebäude im DOM gefunden.');
+                    break;
                 }
 
-                if (!targetCard) {
-                    // Alle derzeit sichtbaren (AF)-Gebäude wurden verarbeitet.
-                    // Wir scrollen nach unten, um über Virtual Scrolling weitere zu laden.
-                    // WICHTIG: scrollHeight ist bei Virtual Scrolling dynamisch und wächst erst
-                    // wenn neue Karten gerendert werden – deshalb KEIN frühzeitiger Abbruch
-                    // per scrollTop >= maxScrollTop, sondern immer erst scrollen und dann prüfen.
-                    if (cards.length === 0) {
-                        console.log('[LEA Supply Refill] Keine Gebäude-Karten gefunden.');
-                        break;
-                    }
+                // Nächstes Gebäude: das mit dem kleinsten data-index > lastProcessedIndex
+                const next = indexedAfCards.find(item => item.index > lastProcessedIndex);
 
-                    const totalCardsBefore = cards.length;
-                    const container = getScrollContainer();
-
-                    console.log('[LEA Supply Refill] Scrolle nach unten für weitere Gebäude...');
-                    if (container) {
-                        container.scrollTop += 400;
-                    } else {
-                        const lastCard = cards[cards.length - 1];
-                        lastCard.scrollIntoView({ block: 'center' });
-                    }
-
-                    // Warte dynamisch bis neue Karten erscheinen (max. 1200ms)
-                    let newCardsAppeared = false;
-                    const scrollWaitStart = Date.now();
-                    while (Date.now() - scrollWaitStart < 1200) {
-                        await wait(80);
-                        const nowCards = document.querySelectorAll('[class*="building-card"]').length;
-                        if (nowCards > totalCardsBefore) {
-                            newCardsAppeared = true;
-                            break;
-                        }
-                    }
-
-                    if (!newCardsAppeared) {
-                        scrollAttemptsWithoutNewCards++;
-                        console.log(`[LEA Supply Refill] Kein Zuwachs an Karten nach Scrollen (Versuch ${scrollAttemptsWithoutNewCards}/3).`);
-                        if (scrollAttemptsWithoutNewCards >= 3) {
-                            console.log('[LEA Supply Refill] Ende der Liste erreicht.');
-                            break;
-                        }
-                    } else {
-                        scrollAttemptsWithoutNewCards = 0;
-                    }
-                    continue;
+                if (!next) {
+                    console.log(`[LEA Supply Refill] Kein höherer Index als ${lastProcessedIndex} sichtbar. Ende der Liste.`);
+                    break;
                 }
 
-                // Ein noch nicht verarbeitetes Gebäude wurde gefunden
                 stats.total++;
-                const cardKey = targetCard.textContent.trim().replace(/\s+/g, ' ');
+                console.log(`[LEA Supply Refill] Betrete Gebäude #${next.index} (${stats.total}. geprüft)...`);
 
                 // Pfeil-Button finden
-                const arrowBtn = targetCard.querySelector('img[src*="to_quest_objective"]')?.closest('button');
+                const arrowBtn = next.card.querySelector('img[src*="to_quest_objective"]')?.closest('button');
                 if (!arrowBtn) {
-                    console.warn('[LEA Supply Refill] Kein Pfeil-Button für Gebäude gefunden. Überspringe...');
+                    console.warn(`[LEA Supply Refill] Kein Pfeil-Button für Index ${next.index}. Überspringe...`);
                     stats.failed++;
-                    processedKeys.add(cardKey);
-                    scrollAttemptsWithoutNewCards = 0;
+                    lastProcessedIndex = next.index;
                     continue;
                 }
 
-                // In das Gebäude reingehen
-                console.log(`[LEA Supply Refill] Betrete Gebäude (insgesamt geprüft: ${stats.total})...`);
-                targetCard.scrollIntoView({ block: 'center' });
-                await wait(100);
                 simulateClick(arrowBtn);
 
                 // Warten auf Laden der Fabrikübersicht
@@ -408,8 +371,7 @@
                         break;
                     }
                     await goBack();
-                    processedKeys.add(cardKey);
-                    scrollAttemptsWithoutNewCards = 0;
+                    lastProcessedIndex = next.index;
                     continue;
                 }
                 consecutiveFailures = 0;
@@ -419,11 +381,10 @@
                 const internBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Intern anfordern'));
 
                 if (!internBtn) {
-                    console.log('[LEA Supply Refill] Kein Button "Intern anfordern" gefunden. Gehe zurück.');
+                    console.log('[LEA Supply Refill] Kein "Intern anfordern" Button. Gehe zurück.');
                     stats.alreadyFull++;
                     await goBack();
-                    processedKeys.add(cardKey);
-                    scrollAttemptsWithoutNewCards = 0;
+                    lastProcessedIndex = next.index;
                     continue;
                 }
 
@@ -433,8 +394,7 @@
                     console.log('[LEA Supply Refill] Gebäude benötigt keinen Nachschub (ausgegraut).');
                     stats.alreadyFull++;
                     await goBack();
-                    processedKeys.add(cardKey);
-                    scrollAttemptsWithoutNewCards = 0;
+                    lastProcessedIndex = next.index;
                     continue;
                 }
 
@@ -448,8 +408,7 @@
                     console.warn('[LEA Supply Refill] Transport-Assistent nicht erschienen.');
                     stats.failed++;
                     await goBack();
-                    processedKeys.add(cardKey);
-                    scrollAttemptsWithoutNewCards = 0;
+                    lastProcessedIndex = next.index;
                     continue;
                 }
 
@@ -477,12 +436,11 @@
                     await wait(300);
                 }
 
-                // Zurück zur Gebäudeübersicht
+                // Zurück zur Gebäudeübersicht (Spiel scrollt automatisch zur richtigen Position)
                 await goBack();
                 await wait(500);
 
-                processedKeys.add(cardKey);
-                scrollAttemptsWithoutNewCards = 0;
+                lastProcessedIndex = next.index;
             }
 
             if (stopRequested) {
