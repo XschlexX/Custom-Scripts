@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.6
+// @version      1.1.7
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -46,7 +46,7 @@
         }
 
         if (searchInput) {
-            if (searchInput.value === term) {
+            if (searchInput.value.trim().toUpperCase() === term.toUpperCase()) {
                 return true;
             }
 
@@ -295,10 +295,18 @@
                 await triggerSearch('(AF)');
                 await wait(200);
 
-                const cards = Array.from(document.querySelectorAll('[class*="building-card"]'));
+                // Warte dynamisch darauf, dass überhaupt Gebäudekarten im DOM vorhanden sind
+                let cards = [];
+                const startLoadTime = Date.now();
+                while (Date.now() - startLoadTime < 4000) {
+                    cards = Array.from(document.querySelectorAll('[class*="building-card"]'));
+                    if (cards.length > 0) break;
+                    await wait(100);
+                }
+
                 const afCards = cards.filter(card => {
                     const text = card.textContent || '';
-                    return text.includes('(AF)');
+                    return text.toUpperCase().includes('(AF)');
                 });
 
                 // Finde das erste (AF)-Gebäude, das noch nicht verarbeitet wurde
