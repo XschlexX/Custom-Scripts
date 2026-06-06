@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.5
+// @version      1.1.6
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -286,7 +286,6 @@
 
             const processedKeys = new Set();
             let consecutiveFailures = 0;
-            let lastDOMStateSignature = '';
             let scrollAttemptsWithoutNewCards = 0;
 
             while (true) {
@@ -320,9 +319,26 @@
                         break;
                     }
 
-                    // Vergleiche Signatur des DOM-Zustands, um unendliches Scrollen am Listenende zu verhindern
                     const currentDOMStateSignature = cards.map(c => c.textContent.trim()).join('|||');
-                    if (currentDOMStateSignature === lastDOMStateSignature) {
+
+                    console.log('[LEA Supply Refill] Scrolle nach unten für weitere Gebäude...');
+                    const lastCard = cards[cards.length - 1];
+                    lastCard.scrollIntoView({ block: 'center' });
+
+                    // Warte dynamisch darauf, dass sich das DOM durch das Scrollen aktualisiert (max 1000ms)
+                    const startScrollTime = Date.now();
+                    let domChanged = false;
+                    while (Date.now() - startScrollTime < 1000) {
+                        await wait(50);
+                        const newCards = Array.from(document.querySelectorAll('[class*="building-card"]'));
+                        const newSignature = newCards.map(c => c.textContent.trim()).join('|||');
+                        if (newSignature !== currentDOMStateSignature) {
+                            domChanged = true;
+                            break;
+                        }
+                    }
+
+                    if (!domChanged) {
                         scrollAttemptsWithoutNewCards++;
                         if (scrollAttemptsWithoutNewCards >= 3) {
                             console.log('[LEA Supply Refill] Ende der Liste erreicht (keine neuen Karten nach Scrollen).');
@@ -331,12 +347,6 @@
                     } else {
                         scrollAttemptsWithoutNewCards = 0;
                     }
-                    lastDOMStateSignature = currentDOMStateSignature;
-
-                    console.log('[LEA Supply Refill] Scrolle nach unten für weitere Gebäude...');
-                    const lastCard = cards[cards.length - 1];
-                    lastCard.scrollIntoView({ block: 'center' });
-                    await wait(500);
                     continue;
                 }
 
@@ -350,6 +360,7 @@
                     console.warn('[LEA Supply Refill] Kein Pfeil-Button für Gebäude gefunden. Überspringe...');
                     stats.failed++;
                     processedKeys.add(cardKey);
+                    scrollAttemptsWithoutNewCards = 0;
                     continue;
                 }
 
@@ -371,6 +382,7 @@
                     }
                     await goBack();
                     processedKeys.add(cardKey);
+                    scrollAttemptsWithoutNewCards = 0;
                     continue;
                 }
                 consecutiveFailures = 0;
@@ -384,6 +396,7 @@
                     stats.alreadyFull++;
                     await goBack();
                     processedKeys.add(cardKey);
+                    scrollAttemptsWithoutNewCards = 0;
                     continue;
                 }
 
@@ -394,6 +407,7 @@
                     stats.alreadyFull++;
                     await goBack();
                     processedKeys.add(cardKey);
+                    scrollAttemptsWithoutNewCards = 0;
                     continue;
                 }
 
@@ -408,6 +422,7 @@
                     stats.failed++;
                     await goBack();
                     processedKeys.add(cardKey);
+                    scrollAttemptsWithoutNewCards = 0;
                     continue;
                 }
 
@@ -440,6 +455,7 @@
                 await wait(500);
 
                 processedKeys.add(cardKey);
+                scrollAttemptsWithoutNewCards = 0;
             }
 
             if (stopRequested) {
