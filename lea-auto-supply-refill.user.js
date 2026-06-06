@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.7
+// @version      1.1.8
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -77,6 +77,17 @@
         }
         console.warn('[LEA Supply Refill] Zurück-Button nicht gefunden!');
         return false;
+    }
+
+    function getScrollContainer() {
+        const card = document.querySelector('[class*="building-card"]');
+        if (!card) return null;
+        let el = card.parentElement;
+        while (el && el !== document.body) {
+            if (el.scrollHeight > el.clientHeight + 5) return el;
+            el = el.parentElement;
+        }
+        return null;
     }
 
     async function waitForFactoryToLoad(timeoutMs = 4000) {
@@ -321,39 +332,30 @@
 
                 if (!targetCard) {
                     // Alle derzeit sichtbaren (AF)-Gebäude wurden verarbeitet.
-                    // Wir scrollen ans Ende der sichtbaren Liste, um über Virtual Scrolling weitere zu laden.
+                    // Wir scrollen nach unten, um über Virtual Scrolling weitere zu laden.
                     if (cards.length === 0) {
                         console.log('[LEA Supply Refill] Keine Gebäude-Karten gefunden.');
                         break;
                     }
 
-                    const currentDOMStateSignature = cards.map(c => c.textContent.trim()).join('|||');
+                    const container = getScrollContainer();
+                    if (container) {
+                        const currentScrollTop = container.scrollTop;
+                        const maxScrollTop = container.scrollHeight - container.clientHeight;
 
-                    console.log('[LEA Supply Refill] Scrolle nach unten für weitere Gebäude...');
-                    const lastCard = cards[cards.length - 1];
-                    lastCard.scrollIntoView({ block: 'center' });
-
-                    // Warte dynamisch darauf, dass sich das DOM durch das Scrollen aktualisiert (max 1000ms)
-                    const startScrollTime = Date.now();
-                    let domChanged = false;
-                    while (Date.now() - startScrollTime < 1000) {
-                        await wait(50);
-                        const newCards = Array.from(document.querySelectorAll('[class*="building-card"]'));
-                        const newSignature = newCards.map(c => c.textContent.trim()).join('|||');
-                        if (newSignature !== currentDOMStateSignature) {
-                            domChanged = true;
+                        if (currentScrollTop >= maxScrollTop - 5) {
+                            console.log('[LEA Supply Refill] Ende der Liste erreicht (ScrollTop ist am Maximum).');
                             break;
                         }
-                    }
 
-                    if (!domChanged) {
-                        scrollAttemptsWithoutNewCards++;
-                        if (scrollAttemptsWithoutNewCards >= 3) {
-                            console.log('[LEA Supply Refill] Ende der Liste erreicht (keine neuen Karten nach Scrollen).');
-                            break;
-                        }
+                        console.log('[LEA Supply Refill] Scrolle Container nach unten...');
+                        container.scrollTop = Math.min(maxScrollTop, currentScrollTop + 400);
+                        await wait(300); // Puffer für das Rendern der neuen Karten
                     } else {
-                        scrollAttemptsWithoutNewCards = 0;
+                        console.log('[LEA Supply Refill] Scroll-Container nicht gefunden. Verwende scrollIntoView...');
+                        const lastCard = cards[cards.length - 1];
+                        lastCard.scrollIntoView({ block: 'center' });
+                        await wait(500);
                     }
                     continue;
                 }
