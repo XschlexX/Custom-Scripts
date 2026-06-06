@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.6
+// @version      1.1.7
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -28,8 +28,8 @@
 
     // Bild-Dateinamen für Buttons (können sich bei Spiel-Updates ändern)
     const IMG_AUTO_SELECT = LEA_CONFIG.IMG_AUTO_SELECT;      // Frau-Icon (Automatisch wählen)
-    const IMG_CONTINUE = LEA_CONFIG.IMG_CONTINUE;            // Doppelpfeil-Icon (Weiter/Starten)
-    const IMG_IN_PROGRESS = LEA_CONFIG.IMG_IN_PROGRESS;      // Fortschritts-Icon
+    // const IMG_CONTINUE = LEA_CONFIG.IMG_CONTINUE;         // Fortschritts-Icon  
+    const IMG_IN_PROGRESS = LEA_CONFIG.IMG_IN_PROGRESS;      // Doppelpfeil-Icon (Weiter/Starten)
 
     let isAutoRunning = false;
     let stopRequested = false;
@@ -185,8 +185,8 @@
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Frau (Produkte automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_CONTINUE}"]`, 2000);
-                        } else if (src.includes(IMG_CONTINUE) || src.includes(IMG_IN_PROGRESS)) {
+                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_IN_PROGRESS}"]`, 2000);
+                        } else if (src.includes(IMG_IN_PROGRESS)) {
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Doppelpfeil (Weiter zur Fahrzeugauswahl)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Frau im neuen Fenster erscheint
@@ -198,8 +198,8 @@
                             console.log('[LEF Auto Assistant] Fahrzeugauswahl: Klicke Frau (Fahrzeug automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_CONTINUE}"]`, 2000);
-                        } else if (src.includes(IMG_CONTINUE) || src.includes(IMG_IN_PROGRESS)) {
+                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_IN_PROGRESS}"]`, 2000);
+                        } else if (src.includes(IMG_IN_PROGRESS)) {
                             // Zeit dynamisch abfragen statt fix zu warten
                             let result = getDeliveryTimeSeconds();
                             let waitTime = 0;

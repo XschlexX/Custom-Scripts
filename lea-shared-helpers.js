@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.1
+// @version      1.0.2
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -23,7 +23,7 @@ var LEA_CONFIG = {
 
     // Assistenten-Buttons (Bilder zur Erkennung)
     IMG_AUTO_SELECT: 'auto_select',
-    IMG_CONTINUE: 'button-continue',
+    // IMG_CONTINUE: 'button-continue', Ist nicht mehr da
     IMG_IN_PROGRESS: 'in_progress',
 
     // Handelszentrum-Spezifisches

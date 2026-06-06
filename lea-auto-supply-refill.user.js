@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.3
+// @version      1.1.4
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -141,8 +141,8 @@
                 if (src.includes(LEA_CONFIG.IMG_AUTO_SELECT)) {
                     console.log('[LEA Supply Refill] Phase 1: Klicke Frau (Produkte automatisch wählen)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_CONTINUE}"]`, 2000);
-                } else if (src.includes(LEA_CONFIG.IMG_CONTINUE)) {
+                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_IN_PROGRESS}"]`, 2000);
+                } else if (src.includes(LEA_CONFIG.IMG_IN_PROGRESS)) {
                     console.log('[LEA Supply Refill] Phase 1: Klicke Doppelpfeil (Weiter)...');
                     simulateClick(currentBtn);
                     await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_AUTO_SELECT}"]`, 2000);
@@ -152,8 +152,8 @@
                 if (src.includes(LEA_CONFIG.IMG_AUTO_SELECT)) {
                     console.log('[LEA Supply Refill] Phase 2: Klicke Frau (Fahrzeuge automatisch wählen)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_CONTINUE}"]`, 2000);
-                } else if (src.includes(LEA_CONFIG.IMG_CONTINUE)) {
+                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_IN_PROGRESS}"]`, 2000);
+                } else if (src.includes(LEA_CONFIG.IMG_IN_PROGRESS)) {
                     let timeResult = getDeliveryTimeSeconds();
                     let waitTime = 0;
                     while (!timeResult && waitTime < 2000) {
