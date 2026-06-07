@@ -2,12 +2,12 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.2
+// @version      1.0.3
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.6
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // ==/UserScript==

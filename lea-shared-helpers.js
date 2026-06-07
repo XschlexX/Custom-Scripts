@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.5
+// @version      1.0.6
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -41,21 +41,30 @@ if (typeof window.LEA_CONFIG === 'undefined') {
         maxDeliveryTimeMinutes: 15
     };
 
+    let cachedSettings = null;
+
     /**
      * Lädt gespeicherte Einstellungen aus localStorage und merged sie mit den Defaults.
-     * Definiert als Getter, damit Änderungen in localStorage immer sofort geladen werden.
+     * Definiert als Getter/Setter mit lokalem Cache, damit Eigenschafts-Zuweisungen (z.B. LEA_CONFIG.settings.x = y)
+     * nicht verloren gehen und rückwärtskompatibel mit älteren Skript-Versionen sind.
      */
     Object.defineProperty(window.LEA_CONFIG, 'settings', {
         get: function () {
+            if (cachedSettings) return cachedSettings;
             try {
                 const stored = localStorage.getItem('lea-settings');
                 if (stored) {
-                    return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+                    cachedSettings = { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+                    return cachedSettings;
                 }
             } catch (e) {
                 console.warn('[LEA Helpers] Settings konnten nicht geladen werden:', e);
             }
-            return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS };
+            cachedSettings = { ...window.LEA_CONFIG.SETTINGS_DEFAULTS };
+            return cachedSettings;
+        },
+        set: function (newVal) {
+            cachedSettings = newVal;
         },
         configurable: true,
         enumerable: true
@@ -69,12 +78,20 @@ if (typeof window.LEA_CONFIG === 'undefined') {
         try {
             const dataToSave = settings || window.LEA_CONFIG.settings;
             localStorage.setItem('lea-settings', JSON.stringify(dataToSave));
+            cachedSettings = dataToSave;
             document.dispatchEvent(new CustomEvent('lea-settings-changed', { detail: { ...dataToSave } }));
             console.log('[LEA Helpers] Settings gespeichert:', dataToSave);
         } catch (e) {
             console.error('[LEA Helpers] Settings konnten nicht gespeichert werden:', e);
         }
     };
+
+    // Event-Listener zur Synchronisation des lokalen Caches bei Einstellungsänderungen
+    document.addEventListener('lea-settings-changed', (e) => {
+        if (e.detail) {
+            cachedSettings = e.detail;
+        }
+    });
 }
 
 var LEA_CONFIG = window.LEA_CONFIG;
