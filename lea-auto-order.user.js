@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.7
+// @version      1.1.8
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -18,7 +18,7 @@
     // =========================================================================
     // KONFIGURATION & SELEKTOREN
     // =========================================================================
-    const MAX_DELIVERY_TIME_MINUTES = LEA_CONFIG.MAX_DELIVERY_TIME_MINUTES;
+    // MAX_DELIVERY_TIME_MINUTES wird dynamisch aus LEA_CONFIG.settings.maxDeliveryTimeMinutes gelesen
 
     const ASSISTANT_BTN_SELECTOR = LEA_CONFIG.ASSISTANT_BTN_SELECTOR;
     const ALL_REWARDS_BTN_SELECTOR = LEA_CONFIG.ALL_REWARDS_BTN_SELECTOR;
@@ -72,7 +72,7 @@
         }
 
         const result = getDeliveryTimeSeconds();
-        if (result && result.seconds > MAX_DELIVERY_TIME_MINUTES * 60) {
+        if (result && result.seconds > LEA_CONFIG.settings.maxDeliveryTimeMinutes * 60) {
             showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString})`);
         } else {
             showTimeWarning(false);
@@ -213,7 +213,7 @@
                                 continue; // Warte weiter im Haupt-Loop
                             }
 
-                            if (result.seconds > MAX_DELIVERY_TIME_MINUTES * 60) {
+                            if (result.seconds > LEA_CONFIG.settings.maxDeliveryTimeMinutes * 60) {
                                 console.warn(`[LEF Auto Assistant] Lieferzeit zu lang (${result.timeString}). Breche ab und gehe zurück!`);
                                 abortOrder = true;
                                 break;

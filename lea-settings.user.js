@@ -2,7 +2,7 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.0
+// @version      1.0.1
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle

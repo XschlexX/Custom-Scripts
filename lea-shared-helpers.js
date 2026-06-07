@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.3
+// @version      1.0.4
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -11,64 +11,68 @@
 // =========================================================================
 // GETEILTE KONSTANTEN
 // =========================================================================
-var LEA_CONFIG = {
-    MAX_DELIVERY_TIME_MINUTES: 15,
-    INPUT_CONTAINER_SELECTOR: '.bb-label-container[tabindex="0"]',
-    ASSISTANT_BTN_SELECTOR: 'button[data-tutorial-id="transport-assistant"]',
-    FILTER_BAR_SELECTOR: '.bb-filter-and-sort-bar',
-    MANAGE_BUILDING_SELECTOR: 'button[data-tutorial-id="manage-building-button"]',
-    SETTINGS_BTN_SELECTOR: 'button[data-tutorial-id="factory-line-settings-button"]',
-    BACK_BTN_SELECTOR: '.bottom-navigation button[show-divider]',
-    DIALOG_SELECTOR: '.bb-dialog',
+if (typeof window.LEA_CONFIG === 'undefined') {
+    window.LEA_CONFIG = {
+        MAX_DELIVERY_TIME_MINUTES: 15,
+        INPUT_CONTAINER_SELECTOR: '.bb-label-container[tabindex="0"]',
+        ASSISTANT_BTN_SELECTOR: 'button[data-tutorial-id="transport-assistant"]',
+        FILTER_BAR_SELECTOR: '.bb-filter-and-sort-bar',
+        MANAGE_BUILDING_SELECTOR: 'button[data-tutorial-id="manage-building-button"]',
+        SETTINGS_BTN_SELECTOR: 'button[data-tutorial-id="factory-line-settings-button"]',
+        BACK_BTN_SELECTOR: '.bottom-navigation button[show-divider]',
+        DIALOG_SELECTOR: '.bb-dialog',
 
-    // Assistenten-Buttons (Bilder zur Erkennung)
-    IMG_AUTO_SELECT: 'auto_select',
-    // IMG_CONTINUE: 'button-continue', Ist nicht mehr da
-    IMG_IN_PROGRESS: 'in_progress',
+        // Assistenten-Buttons (Bilder zur Erkennung)
+        IMG_AUTO_SELECT: 'auto_select',
+        // IMG_CONTINUE: 'button-continue', Ist nicht mehr da
+        IMG_IN_PROGRESS: 'in_progress',
 
-    // Handelszentrum-Spezifisches
-    ALL_REWARDS_BTN_SELECTOR: 'button.variant--normal img[src*="collect_order"]',
-    HANDELSZENTRUM_HEADER_SRC: 'img[src*="page_header_orders-"]'
-};
+        // Handelszentrum-Spezifisches
+        ALL_REWARDS_BTN_SELECTOR: 'button.variant--normal img[src*="collect_order"]',
+        HANDELSZENTRUM_HEADER_SRC: 'img[src*="page_header_orders-"]'
+    };
 
-// =========================================================================
-// SETTINGS-MANAGEMENT (localStorage-basiert)
-// =========================================================================
-LEA_CONFIG.SETTINGS_KEY = 'lea-settings';
-LEA_CONFIG.SETTINGS_DEFAULTS = {
-    buildingPrefix: '(AF)',
-    maxDeliveryTimeMinutes: 15
-};
+    // =========================================================================
+    // SETTINGS-MANAGEMENT (localStorage-basiert)
+    // =========================================================================
+    window.LEA_CONFIG.SETTINGS_KEY = 'lea-settings';
+    window.LEA_CONFIG.SETTINGS_DEFAULTS = {
+        buildingPrefix: '(AF)',
+        maxDeliveryTimeMinutes: 15
+    };
 
-/**
- * Lädt gespeicherte Einstellungen aus localStorage und merged sie mit den Defaults.
- * Falls nichts gespeichert ist, werden die Defaults verwendet.
- */
-LEA_CONFIG.settings = (function () {
-    try {
-        const stored = localStorage.getItem('lea-settings');
-        if (stored) {
-            return { ...LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+    /**
+     * Lädt gespeicherte Einstellungen aus localStorage und merged sie mit den Defaults.
+     * Falls nichts gespeichert ist, werden die Defaults verwendet.
+     */
+    window.LEA_CONFIG.settings = (function () {
+        try {
+            const stored = localStorage.getItem('lea-settings');
+            if (stored) {
+                return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+            }
+        } catch (e) {
+            console.warn('[LEA Helpers] Settings konnten nicht geladen werden:', e);
         }
-    } catch (e) {
-        console.warn('[LEA Helpers] Settings konnten nicht geladen werden:', e);
-    }
-    return { ...LEA_CONFIG.SETTINGS_DEFAULTS };
-})();
+        return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS };
+    })();
 
-/**
- * Speichert die aktuellen Settings in localStorage und dispatcht ein CustomEvent.
- * Andere Skripte können auf 'lea-settings-changed' lauschen.
- */
-LEA_CONFIG.saveSettings = function () {
-    try {
-        localStorage.setItem('lea-settings', JSON.stringify(LEA_CONFIG.settings));
-        document.dispatchEvent(new CustomEvent('lea-settings-changed', { detail: { ...LEA_CONFIG.settings } }));
-        console.log('[LEA Helpers] Settings gespeichert:', LEA_CONFIG.settings);
-    } catch (e) {
-        console.error('[LEA Helpers] Settings konnten nicht gespeichert werden:', e);
-    }
-};
+    /**
+     * Speichert die aktuellen Settings in localStorage und dispatcht ein CustomEvent.
+     * Andere Skripte können auf 'lea-settings-changed' lauschen.
+     */
+    window.LEA_CONFIG.saveSettings = function () {
+        try {
+            localStorage.setItem('lea-settings', JSON.stringify(window.LEA_CONFIG.settings));
+            document.dispatchEvent(new CustomEvent('lea-settings-changed', { detail: { ...window.LEA_CONFIG.settings } }));
+            console.log('[LEA Helpers] Settings gespeichert:', window.LEA_CONFIG.settings);
+        } catch (e) {
+            console.error('[LEA Helpers] Settings konnten nicht gespeichert werden:', e);
+        }
+    };
+}
+
+var LEA_CONFIG = window.LEA_CONFIG;
 
 // =========================================================================
 // GEMEINSAME HILFSFUNKTIONEN
