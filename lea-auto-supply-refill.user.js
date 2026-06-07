@@ -415,10 +415,7 @@
             console.log('[LEA Supply Refill] Transport abgebrochen.');
             const status = refillResult.status; // 'skipped_time', 'stopped', oder 'failed'
 
-            await closeVehicleWindow();
-            await wait(300);
-            await goBack();
-            await wait(500);
+            await navigateBackToBuildingOverview();
 
             return status;
         }
@@ -501,29 +498,33 @@
     }
 
     /**
-     * Schließt offene Fahrzeug-Unterfenster oder Dialoge.
-     * @returns {Promise<void>}
+     * Navigiert schrittweise zurück zur Gebäudeübersicht, indem wiederholt der Zurück-Button geklickt wird.
+     * Stoppt, sobald der Filter-Button der Gebäudeübersicht im DOM erkannt wird.
+     * @param {number} [maxSteps=6] - Maximale Anzahl an Zurück-Klicks als Sicherheitslimit.
+     * @returns {Promise<boolean>} true, wenn die Gebäudeübersicht erreicht wurde.
      */
-    async function closeVehicleWindow() {
-        console.log('[LEA Supply Refill] Schließe offene Unterfenster...');
-        for (let i = 0; i < 4; i++) {
-            const pageText = document.body.textContent || '';
-            const isSubWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität|Angeforderte Waren|Waren im Lager/);
-            const hasAssistantBtn = !!document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
+    async function navigateBackToBuildingOverview(maxSteps = 6) {
+        console.log('[LEA Supply Refill] Navigiere zurück zur Gebäudeübersicht...');
 
-            if (!isSubWindow && !hasAssistantBtn) {
-                break;
+        for (let i = 0; i < maxSteps; i++) {
+            // Prüfe ob wir bereits in der Gebäudeübersicht sind
+            if (document.querySelector('[data-tutorial-id="filter_by_building_type"]')) {
+                console.log('[LEA Supply Refill] Gebäudeübersicht erreicht.');
+                return true;
             }
 
-            const closeBtn = document.querySelector('button.variant--neutral img[src*="arrow-back"], button.variant--neutral img[src*="close"]')?.closest('button');
-            if (closeBtn) {
-                simulateClick(closeBtn);
-                await wait(300);
-            } else {
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
-                await wait(300);
+            const backClicked = await goBack();
+            if (!backClicked) {
+                console.warn('[LEA Supply Refill] Kein Zurück-Button gefunden, Abbruch der Navigation.');
+                return false;
             }
         }
+
+        const arrived = !!document.querySelector('[data-tutorial-id="filter_by_building_type"]');
+        if (!arrived) {
+            console.warn('[LEA Supply Refill] Gebäudeübersicht nach maxSteps nicht erreicht!');
+        }
+        return arrived;
     }
 
     /**
