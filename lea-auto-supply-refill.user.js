@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.11
+// @version      1.1.12
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -16,131 +16,240 @@
     'use strict';
 
     // =========================================================================
-    // KONFIGURATION & SELEKTOREN
+    // KONFIGURATION & ZUSTANDS-VARIABLEN
     // =========================================================================
     const MAX_DELIVERY_TIME_MINUTES = LEA_CONFIG.MAX_DELIVERY_TIME_MINUTES;
-    const FILTER_BAR_SELECTOR = LEA_CONFIG.FILTER_BAR_SELECTOR;
     const INJECT_BTN_ID = 'lea-supply-refill-btn';
     const FLOATING_STOP_BTN_ID = 'lea-supply-floating-stop-btn';
+    const BUILDING_PREFIX = 'Test';
 
     let isAutoRunning = false;
     let stopRequested = false;
 
-
     // =========================================================================
-    // NAVIGATIONS-HILFEN (Suchen & Zurückgehen)
+    // INITIALISIERUNG & ENTRY POINT
     // =========================================================================
 
-    async function triggerSearch(term) {
-        console.log(`[LEA Supply Refill] Starte Suche nach: ${term}`);
-
-        let searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
-
-        if (!searchInput) {
-            const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
-            if (searchBtn) {
-                simulateClick(searchBtn);
-                await waitForElementToAppear('input', 1500);
-                searchInput = document.querySelector('input');
-            }
-        }
-
-        if (searchInput) {
-            if (searchInput.value.trim().toUpperCase() === term.toUpperCase()) {
-                return true;
-            }
-
-            searchInput.focus();
-            searchInput.value = term;
-
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-            searchInput.blur();
-
-            await wait(400); // Erhöhtes Warten für reibungsloses Filtern
-            return true;
-        }
-
-        console.warn('[LEA Supply Refill] Suchfeld konnte nicht geöffnet werden.');
-        return false;
-    }
-
-    async function goBack() {
-        const backBtn = document.querySelector('.bottom-navigation button[show-divider]') ||
-            document.querySelector('.bottom-navigation button:first-child') ||
-            document.querySelector('button.variant--neutral img[src*="arrow-back"]')?.closest('button');
-        if (backBtn) {
-            console.log('[LEA Supply Refill] Klicke Zurück-Button...');
-            simulateClick(backBtn);
-            await wait(600);
-            return true;
-        }
-        console.warn('[LEA Supply Refill] Zurück-Button nicht gefunden!');
-        return false;
-    }
-
-    function getScrollContainer() {
-        const card = document.querySelector('[class*="building-card"]');
-        if (!card) return null;
-        let el = card.parentElement;
-        while (el && el !== document.body) {
-            if (el.scrollHeight > el.clientHeight + 5) return el;
-            el = el.parentElement;
-        }
-        return null;
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
 
     /**
-     * Liest alle sichtbaren (AF)-Gebäudekarten aus dem Virtual-Scroll-DOM aus.
-     * Nutzt das data-index Attribut der virtuellen Listenzeilen als absolute Position.
-     * Gibt ein nach index sortiertes Array zurück: [{ index, card }]
+     * Initialisiert das Userscript und startet den MutationObserver.
      */
-    function getIndexedAfCards() {
-        return Array.from(document.querySelectorAll('[data-index]'))
-            .map(el => ({
-                index: parseInt(el.getAttribute('data-index'), 10),
-                card: el.querySelector('[class*="building-card"]')
-            }))
-            .filter(item =>
-                !isNaN(item.index) &&
-                item.card !== null &&
-                item.card.textContent.toUpperCase().includes('(AF)')
-            )
-            .sort((a, b) => a.index - b.index);
+    function init() {
+        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.12 (Voll-Automatikmodus)');
+        injectStartButton();
+
+        let isHandlingMutations = false;
+        const observer = new MutationObserver(() => {
+            if (!isHandlingMutations) {
+                isHandlingMutations = true;
+                requestAnimationFrame(() => {
+                    injectStartButton();
+                    isHandlingMutations = false;
+                });
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    async function waitForFactoryToLoad(timeoutMs = 4000) {
-        const startTime = Date.now();
-        while (Date.now() - startTime < timeoutMs) {
-            const hasInternBtn = Array.from(document.querySelectorAll('button')).some(b => b.textContent.includes('Intern anfordern') || b.textContent.includes('Extern kaufen'));
-            const backBtn = document.querySelector('.bottom-navigation button[show-divider]') || document.querySelector('.bottom-navigation button:first-child');
-            if (hasInternBtn && backBtn) {
-                return true;
-            }
-            await wait(50);
+    // =========================================================================
+    // BUTTON INJEKTION & UI CONTROL
+    // =========================================================================
+
+    /**
+     * Injiziert den "Auto Refill"-Button in das UI des Spiels, wenn man sich in der Gebäudeübersicht befindet.
+     */
+    function injectStartButton() {
+        const isBuildingOverview = !!document.querySelector('[data-tutorial-id="filter_by_building_type"]');
+
+        if (!isBuildingOverview) {
+            const existing = document.getElementById(INJECT_BTN_ID);
+            if (existing) existing.remove();
+            return;
         }
-        return false;
+
+        if (document.getElementById(INJECT_BTN_ID)) return;
+
+        const blueprintBtn = document.querySelector('button[data-tutorial-id="building-list-item-add"]');
+
+        if (!blueprintBtn) return;
+
+        const btn = document.createElement('button');
+        btn.id = INJECT_BTN_ID;
+        btn.type = 'button';
+        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
+        if (isAutoRunning) {
+            btn.classList.add('lea-btn-running');
+        }
+        btn.title = 'Automatischen Rohstoff-Nachschub für alle (AF) Gebäude starten';
+
+        const inner = document.createElement('div');
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
+        inner.innerHTML = isAutoRunning ? 'STOP' : 'Auto<br>Refill';
+        btn.appendChild(inner);
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isAutoRunning) {
+                stopRequested = true;
+            } else {
+                executeAutoRefill();
+            }
+        });
+
+        blueprintBtn.parentNode.insertBefore(btn, blueprintBtn);
     }
 
-    async function closeVehicleWindow() {
-        console.log('[LEA Supply Refill] Schließe offene Unterfenster...');
-        for (let i = 0; i < 4; i++) {
-            const pageText = document.body.textContent || '';
-            const isSubWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität|Angeforderte Waren|Waren im Lager/);
-            const hasAssistantBtn = !!document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
+    /**
+     * Aktualisiert den Status des Injektions-Buttons und des Floating-Stop-Buttons.
+     * @param {boolean} running - Ob der Prozess aktuell läuft.
+     */
+    function updateStartButtonState(running) {
+        const btn = document.getElementById(INJECT_BTN_ID);
+        if (btn) {
+            const inner = btn.querySelector('div');
+            if (inner) {
+                inner.innerHTML = running ? 'STOP' : 'Auto<br>Refill';
+                if (running) {
+                    btn.classList.add('lea-btn-running');
+                } else {
+                    btn.classList.remove('lea-btn-running');
+                }
+            }
+        }
+        updateFloatingStopButton(running);
+    }
 
-            if (!isSubWindow && !hasAssistantBtn) {
-                break;
+    /**
+     * Erstellt oder entfernt den schwebenden Stop-Button.
+     * @param {boolean} running - Ob der Prozess aktuell läuft.
+     */
+    function updateFloatingStopButton(running) {
+        let btn = document.getElementById(FLOATING_STOP_BTN_ID);
+
+        if (!running) {
+            if (btn) btn.remove();
+            return;
+        }
+
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = FLOATING_STOP_BTN_ID;
+            btn.className = 'lea-floating-stop-btn';
+            btn.textContent = '🛑 STOP Auto Refill';
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[LEA Supply Refill] Stop angefordert über Floating Button!');
+                showToast('Ablauf wird abgebrochen...');
+                stopRequested = true;
+                btn.textContent = 'Stoppt...';
+                btn.classList.add('lea-btn-disabled');
+            });
+
+            document.body.appendChild(btn);
+        }
+    }
+
+    // =========================================================================
+    // HAUPT-AUTOMATIONSLOOP
+    // =========================================================================
+
+    /**
+     * Hauptfunktion zur Durchführung des automatischen Rohstoff-Auffüllens.
+     * @returns {Promise<void>}
+     */
+    async function executeAutoRefill() {
+        if (isAutoRunning) return;
+        isAutoRunning = true;
+        stopRequested = false;
+        updateStartButtonState(true);
+        showToast('Auto Refill gestartet...');
+
+        const stats = {
+            total: 0,
+            refilled: 0,
+            alreadyFull: 0,
+            skippedTime: 0,
+            failed: 0
+        };
+
+        try {
+            // Suche einmalig am Start ausführen
+            const searchSuccess = await triggerSearch(BUILDING_PREFIX);
+            if (!searchSuccess) {
+                showToast('Fehler: Suche konnte nicht gestartet werden.');
+                return;
             }
 
-            const closeBtn = document.querySelector('button.variant--neutral img[src*="arrow-back"], button.variant--neutral img[src*="close"]')?.closest('button');
-            if (closeBtn) {
-                simulateClick(closeBtn);
-                await wait(300);
+            // Warte bis Karten im DOM erscheinen
+            await wait(400);
+
+            let lastProcessedIndex = -1;
+            let consecutiveFailures = 0;
+
+            while (true) {
+                if (stopRequested) break;
+
+                const next = await waitForNextCard(lastProcessedIndex);
+                if (!next) {
+                    console.log(`[LEA Supply Refill] Kein höherer Index als ${lastProcessedIndex} gefunden. Ende der Liste.`);
+                    break;
+                }
+
+                stats.total++;
+                const result = await processBuildingCard(next);
+
+                if (result === 'success') {
+                    stats.refilled++;
+                    consecutiveFailures = 0;
+                } else if (result === 'already_full') {
+                    stats.alreadyFull++;
+                    consecutiveFailures = 0;
+                } else if (result === 'skipped_time') {
+                    stats.skippedTime++;
+                    consecutiveFailures = 0;
+                } else if (result === 'failed') {
+                    stats.failed++;
+                    consecutiveFailures = 0;
+                } else if (result === 'load_error') {
+                    stats.failed++;
+                    consecutiveFailures++;
+                    if (consecutiveFailures > 3) {
+                        showToast('Fehler: Zu viele Ladefehler. Stoppe.');
+                        break;
+                    }
+                } else if (result === 'stopped') {
+                    stats.total--; // Nicht komplett bearbeitet
+                    break;
+                }
+
+                lastProcessedIndex = next.index;
+            }
+
+            if (stopRequested) {
+                showToast('Auto Refill gestoppt.');
             } else {
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
-                await wait(300);
+                showToast('Auto Refill abgeschlossen!');
             }
+
+            if (stats.total > 0) {
+                showRefillReportModal(stats);
+            }
+
+        } catch (e) {
+            console.error('[LEA Supply Refill] Fehler im Hauptablauf:', e);
+            showToast('Kritischer Fehler im Ablauf.');
+        } finally {
+            isAutoRunning = false;
+            stopRequested = false;
+            updateStartButtonState(false);
         }
     }
 
@@ -148,18 +257,20 @@
     // ASSISTENTEN-KLICK-LOGIK
     // =========================================================================
 
+    /**
+     * Führt die Assistenten-Durchklick-Logik zum automatischen Bestellen von Ressourcen aus.
+     * @returns {Promise<{status: string}>} Das Resultat der Aktion ('success', 'failed', 'skipped_time', 'stopped').
+     */
     async function runTransportAssistantRefill() {
         console.log('[LEA Supply Refill] Starte Assistenten-Durchklick-Logik...');
         let stepCount = 0;
-        let abortRefill = false;
-        let isTimeTooLong = false;
 
         while (stepCount < 15) {
             if (stopRequested) return { status: 'stopped' };
 
             const currentBtn = document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
             if (!currentBtn) {
-                return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'success' };
+                return { status: 'success' };
             }
 
             const src = currentBtn.querySelector('img')?.getAttribute('src') || '';
@@ -197,16 +308,14 @@
                     } else if (timeResult.seconds > MAX_DELIVERY_TIME_MINUTES * 60) {
                         console.warn(`[LEA Supply Refill] Lieferzeit zu lang (${timeResult.timeString} > ${MAX_DELIVERY_TIME_MINUTES} Min). Breche ab!`);
                         showToast(`Zeit zu lang (${timeResult.timeString}). Übersprungen!`);
-                        abortRefill = true;
-                        isTimeTooLong = true;
-                        break;
+                        return { status: 'skipped_time' };
                     } else {
                         console.log(`[LEA Supply Refill] Lieferzeit OK (${timeResult.timeString}). Starte Transport...`);
                     }
 
                     simulateClick(currentBtn);
                     await waitForElementToDisappear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 3000);
-                    return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'success' };
+                    return { status: 'success' };
                 }
             }
 
@@ -214,13 +323,240 @@
             stepCount++;
         }
 
-        return { status: abortRefill ? (isTimeTooLong ? 'skipped_time' : 'failed') : 'failed' };
+        return { status: 'failed' };
     }
 
     // =========================================================================
-    // UI: STATISTIK MODAL AM SCHLUSS
+    // HILFSFUNKTIONEN FÜR EINZELSCHRITTE (NAVIGATION & DOM)
     // =========================================================================
 
+    /**
+     * Wartet darauf, dass eine Gebäudekarte mit einem höheren Index als dem zuletzt verarbeiteten sichtbar wird.
+     * @param {number} lastProcessedIndex - Der Index des zuletzt erfolgreich verarbeiteten Gebäudes.
+     * @returns {Promise<object|null>} Die nächste Gebäudekarte oder null, falls das Timeout erreicht wurde.
+     */
+    async function waitForNextCard(lastProcessedIndex) {
+        let indexedAfCards = [];
+        const startLoadTime = Date.now();
+        while (Date.now() - startLoadTime < 4000) {
+            indexedAfCards = getIndexedAfCards();
+            const hasNext = indexedAfCards.some(item => item.index > lastProcessedIndex);
+            if (hasNext) break;
+            await wait(100);
+        }
+        return indexedAfCards.find(item => item.index > lastProcessedIndex) || null;
+    }
+
+    /**
+     * Verarbeitet ein einzelnes Gebäude (betritt es, prüft Bedarf, fordert ggf. Rohstoffe an).
+     * @param {object} next - Das zu verarbeitende Gebäude ({ index, card }).
+     * @returns {Promise<string>} Der Status der Verarbeitung ('success', 'already_full', 'skipped_time', 'failed', 'load_error', 'stopped').
+     */
+    async function processBuildingCard(next) {
+        console.log(`[LEA Supply Refill] Betrete Gebäude #${next.index}...`);
+
+        // Pfeil-Button finden
+        const arrowBtn = next.card.querySelector('img[src*="to_quest_objective"]')?.closest('button');
+        if (!arrowBtn) {
+            console.warn(`[LEA Supply Refill] Kein Pfeil-Button für Index ${next.index}. Überspringe...`);
+            return 'failed';
+        }
+
+        simulateClick(arrowBtn);
+
+        // Warten auf Laden der Fabrikübersicht
+        const loaded = await waitForFactoryToLoad(4000);
+        if (!loaded) {
+            console.error('[LEA Supply Refill] Ladezeit der Fabrik überschritten.');
+            await goBack();
+            return 'load_error';
+        }
+        await wait(400); // Kurzer Rendering-Puffer
+
+        // "Intern anfordern" Button suchen
+        const internBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Intern anfordern'));
+
+        if (!internBtn) {
+            console.log('[LEA Supply Refill] Kein "Intern anfordern" Button. Gehe zurück.');
+            await goBack();
+            return 'already_full';
+        }
+
+        const isDisabled = internBtn.disabled || internBtn.getAttribute('disabled') !== null || internBtn.classList.contains('is-disabled');
+
+        if (isDisabled) {
+            console.log('[LEA Supply Refill] Gebäude benötigt keinen Nachschub (ausgegraut).');
+            await goBack();
+            return 'already_full';
+        }
+
+        // Wenn aktiv, klicke "Intern anfordern"
+        console.log('[LEA Supply Refill] Nachschub benötigt! Klicke Intern anfordern...');
+        simulateClick(internBtn);
+
+        // Warten auf Assistent
+        const assistantOpened = await waitForElementToAppear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 4000);
+        if (!assistantOpened) {
+            console.warn('[LEA Supply Refill] Transport-Assistent nicht erschienen.');
+            await goBack();
+            return 'failed';
+        }
+
+        // Transport-Assistent Klick-Logik ausführen
+        const refillResult = await runTransportAssistantRefill();
+
+        if (refillResult.status === 'success') {
+            console.log('[LEA Supply Refill] Transport erfolgreich gestartet!');
+            await wait(600);
+            await goBack();
+            await wait(500);
+            return 'success';
+        } else {
+            console.log('[LEA Supply Refill] Transport abgebrochen.');
+            const status = refillResult.status; // 'skipped_time', 'stopped', oder 'failed'
+
+            await closeVehicleWindow();
+            await wait(300);
+            await goBack();
+            await wait(500);
+
+            return status;
+        }
+    }
+
+    /**
+     * Startet eine Suche nach dem angegebenen Begriff über das Suchfeld im Spiel.
+     * @param {string} term - Der Suchbegriff (z. B. "(AF)").
+     * @returns {Promise<boolean>} Gibt true zurück, wenn die Suche erfolgreich gestartet wurde.
+     */
+    async function triggerSearch(term) {
+        console.log(`[LEA Supply Refill] Starte Suche nach: ${term}`);
+
+        let searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
+
+        if (!searchInput) {
+            const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+            if (searchBtn) {
+                simulateClick(searchBtn);
+                await waitForElementToAppear('input', 1500);
+                searchInput = document.querySelector('input');
+            }
+        }
+
+        if (searchInput) {
+            if (searchInput.value.trim().toUpperCase() === term.toUpperCase()) {
+                return true;
+            }
+
+            searchInput.focus();
+            searchInput.value = term;
+
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            searchInput.blur();
+
+            await wait(400); // Erhöhtes Warten für reibungsloses Filtern
+            return true;
+        }
+
+        console.warn('[LEA Supply Refill] Suchfeld konnte nicht geöffnet werden.');
+        return false;
+    }
+
+    /**
+     * Liest alle sichtbaren (AF)-Gebäudekarten aus dem Virtual-Scroll-DOM aus.
+     * Nutzt das data-index Attribut der virtuellen Listenzeilen als absolute Position.
+     * Gibt ein nach index sortiertes Array zurück: [{ index, card }]
+     */
+    function getIndexedAfCards() {
+        return Array.from(document.querySelectorAll('[data-index]'))
+            .map(el => ({
+                index: parseInt(el.getAttribute('data-index'), 10),
+                card: el.querySelector('[class*="building-card"]')
+            }))
+            .filter(item =>
+                !isNaN(item.index) &&
+                item.card !== null &&
+                item.card.textContent.toUpperCase().includes(BUILDING_PREFIX.toUpperCase())
+            )
+            .sort((a, b) => a.index - b.index);
+    }
+
+    /**
+     * Wartet darauf, dass die Fabrikübersichtsseite vollständig geladen wird.
+     * @param {number} [timeoutMs=4000] - Maximales Timeout in Millisekunden.
+     * @returns {Promise<boolean>} Gibt true zurück, wenn die Seite geladen wurde.
+     */
+    async function waitForFactoryToLoad(timeoutMs = 4000) {
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            const hasInternBtn = Array.from(document.querySelectorAll('button')).some(b => b.textContent.includes('Intern anfordern') || b.textContent.includes('Extern kaufen'));
+            const backBtn = document.querySelector('.bottom-navigation button[show-divider]') || document.querySelector('.bottom-navigation button:first-child');
+            if (hasInternBtn && backBtn) {
+                return true;
+            }
+            await wait(50);
+        }
+        return false;
+    }
+
+    /**
+     * Schließt offene Fahrzeug-Unterfenster oder Dialoge.
+     * @returns {Promise<void>}
+     */
+    async function closeVehicleWindow() {
+        console.log('[LEA Supply Refill] Schließe offene Unterfenster...');
+        for (let i = 0; i < 4; i++) {
+            const pageText = document.body.textContent || '';
+            const isSubWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität|Angeforderte Waren|Waren im Lager/);
+            const hasAssistantBtn = !!document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
+
+            if (!isSubWindow && !hasAssistantBtn) {
+                break;
+            }
+
+            const closeBtn = document.querySelector('button.variant--neutral img[src*="arrow-back"], button.variant--neutral img[src*="close"]')?.closest('button');
+            if (closeBtn) {
+                simulateClick(closeBtn);
+                await wait(300);
+            } else {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+                await wait(300);
+            }
+        }
+    }
+
+    /**
+     * Klickt auf den Zurück-Button, um zur vorherigen Ansicht zu gelangen.
+     * @returns {Promise<boolean>} Gibt true zurück, wenn der Button geklickt wurde.
+     */
+    async function goBack() {
+        const backBtn = document.querySelector('.bottom-navigation button[show-divider]') ||
+            document.querySelector('.bottom-navigation button:first-child') ||
+            document.querySelector('button.variant--neutral img[src*="arrow-back"]')?.closest('button');
+        if (backBtn) {
+            console.log('[LEA Supply Refill] Klicke Zurück-Button...');
+            simulateClick(backBtn);
+            await wait(600);
+            return true;
+        }
+        console.warn('[LEA Supply Refill] Zurück-Button nicht gefunden!');
+        return false;
+    }
+
+    // =========================================================================
+    // UI: REPORT / STATISTIK MODAL
+    // =========================================================================
+
+    /**
+     * Zeigt das Statistik-Modal am Ende des Durchlaufs an.
+     * @param {object} stats - Statistiken des Durchlaufs.
+     * @param {number} stats.total - Gesamt geprüfte Gebäude.
+     * @param {number} stats.refilled - Erfolgreich aufgefüllte Gebäude.
+     * @param {number} stats.alreadyFull - Bereits volle Gebäude.
+     * @param {number} stats.skippedTime - Aufgrund zu langer Lieferzeit übersprungene Gebäude.
+     * @param {number} stats.failed - Fehlerhafte Gebäude.
+     */
     function showRefillReportModal(stats) {
         // Altes Modal entfernen falls vorhanden
         const existing = document.getElementById('lea-refill-report-modal');
@@ -288,293 +624,4 @@
         document.body.appendChild(overlay);
     }
 
-    // =========================================================================
-    // HAUPT-AUTOMATIONSLOOP
-    // =========================================================================
-
-    async function executeAutoRefill() {
-        if (isAutoRunning) return;
-        isAutoRunning = true;
-        stopRequested = false;
-        updateStartButtonState(true);
-        showToast('Auto Refill gestartet...');
-
-        const stats = {
-            total: 0,
-            refilled: 0,
-            alreadyFull: 0,
-            skippedTime: 0,
-            failed: 0
-        };
-
-        try {
-            // Suche einmalig am Start ausführen
-            const searchSuccess = await triggerSearch('(AF)');
-            if (!searchSuccess) {
-                showToast('Fehler: Suche konnte nicht gestartet werden.');
-                return;
-            }
-
-            // Warte bis Karten im DOM erscheinen
-            await wait(400);
-
-            let lastProcessedIndex = -1;
-            let consecutiveFailures = 0;
-
-            while (true) {
-                if (stopRequested) break;
-
-                // Warte bis die nächste Karte (index > lastProcessedIndex) im DOM sichtbar ist (max. 4s).
-                // Wichtig: Nach goBack() zeigt das Spiel zuerst das gerade besuchte Gebäude (= lastProcessedIndex)
-                // und lädt das nächste erst etwas später. Daher auf den höheren Index warten.
-                let indexedAfCards = [];
-                const startLoadTime = Date.now();
-                while (Date.now() - startLoadTime < 4000) {
-                    indexedAfCards = getIndexedAfCards();
-                    const hasNext = indexedAfCards.some(item => item.index > lastProcessedIndex);
-                    if (hasNext) break;
-                    await wait(100);
-                }
-
-                // Nächstes Gebäude: das mit dem kleinsten data-index > lastProcessedIndex
-                const next = indexedAfCards.find(item => item.index > lastProcessedIndex);
-
-                if (!next) {
-                    console.log(`[LEA Supply Refill] Kein höherer Index als ${lastProcessedIndex} gefunden. Ende der Liste.`);
-                    break;
-                }
-
-                stats.total++;
-                console.log(`[LEA Supply Refill] Betrete Gebäude #${next.index} (${stats.total}. geprüft)...`);
-
-                // Pfeil-Button finden
-                const arrowBtn = next.card.querySelector('img[src*="to_quest_objective"]')?.closest('button');
-                if (!arrowBtn) {
-                    console.warn(`[LEA Supply Refill] Kein Pfeil-Button für Index ${next.index}. Überspringe...`);
-                    stats.failed++;
-                    lastProcessedIndex = next.index;
-                    continue;
-                }
-
-                simulateClick(arrowBtn);
-
-                // Warten auf Laden der Fabrikübersicht
-                const loaded = await waitForFactoryToLoad(4000);
-                if (!loaded) {
-                    console.error('[LEA Supply Refill] Ladezeit der Fabrik überschritten.');
-                    consecutiveFailures++;
-                    stats.failed++;
-                    if (consecutiveFailures > 3) {
-                        showToast('Fehler: Zu viele Ladefehler. Stoppe.');
-                        break;
-                    }
-                    await goBack();
-                    lastProcessedIndex = next.index;
-                    continue;
-                }
-                consecutiveFailures = 0;
-                await wait(400); // Kurzer Rendering-Puffer
-
-                // "Intern anfordern" Button suchen
-                const internBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Intern anfordern'));
-
-                if (!internBtn) {
-                    console.log('[LEA Supply Refill] Kein "Intern anfordern" Button. Gehe zurück.');
-                    stats.alreadyFull++;
-                    await goBack();
-                    lastProcessedIndex = next.index;
-                    continue;
-                }
-
-                const isDisabled = internBtn.disabled || internBtn.getAttribute('disabled') !== null || internBtn.classList.contains('is-disabled');
-
-                if (isDisabled) {
-                    console.log('[LEA Supply Refill] Gebäude benötigt keinen Nachschub (ausgegraut).');
-                    stats.alreadyFull++;
-                    await goBack();
-                    lastProcessedIndex = next.index;
-                    continue;
-                }
-
-                // Wenn aktiv, klicke "Intern anfordern"
-                console.log('[LEA Supply Refill] Nachschub benötigt! Klicke Intern anfordern...');
-                simulateClick(internBtn);
-
-                // Warten auf Assistent
-                const assistantOpened = await waitForElementToAppear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 4000);
-                if (!assistantOpened) {
-                    console.warn('[LEA Supply Refill] Transport-Assistent nicht erschienen.');
-                    stats.failed++;
-                    await goBack();
-                    lastProcessedIndex = next.index;
-                    continue;
-                }
-
-                // Transport-Assistent Klick-Logik ausführen
-                const refillResult = await runTransportAssistantRefill();
-
-                if (refillResult.status === 'success') {
-                    console.log('[LEA Supply Refill] Transport erfolgreich gestartet!');
-                    stats.refilled++;
-                    await wait(600);
-                } else {
-                    console.log('[LEA Supply Refill] Transport abgebrochen.');
-                    if (refillResult.status === 'skipped_time') {
-                        stats.skippedTime++;
-                    } else if (refillResult.status === 'stopped') {
-                        stats.total--; // Nicht komplett bearbeitet
-                        await closeVehicleWindow();
-                        await wait(300);
-                        await goBack();
-                        break;
-                    } else {
-                        stats.failed++;
-                    }
-                    await closeVehicleWindow();
-                    await wait(300);
-                }
-
-                // Zurück zur Gebäudeübersicht (Spiel scrollt automatisch zur richtigen Position)
-                await goBack();
-                await wait(500);
-
-                lastProcessedIndex = next.index;
-            }
-
-            if (stopRequested) {
-                showToast('Auto Refill gestoppt.');
-            } else {
-                showToast('Auto Refill abgeschlossen!');
-            }
-
-            if (stats.total > 0) {
-                showRefillReportModal(stats);
-            }
-
-        } catch (e) {
-            console.error('[LEA Supply Refill] Fehler im Hauptablauf:', e);
-            showToast('Kritischer Fehler im Ablauf.');
-        } finally {
-            isAutoRunning = false;
-            stopRequested = false;
-            updateStartButtonState(false);
-        }
-    }
-
-    // =========================================================================
-    // START/STOP BUTTON INJEKTION
-    // =========================================================================
-
-    function updateFloatingStopButton(running) {
-        let btn = document.getElementById(FLOATING_STOP_BTN_ID);
-
-        if (!running) {
-            if (btn) btn.remove();
-            return;
-        }
-
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.id = FLOATING_STOP_BTN_ID;
-            btn.className = 'lea-floating-stop-btn';
-            btn.textContent = '🛑 STOP Auto Refill';
-
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[LEA Supply Refill] Stop angefordert über Floating Button!');
-                showToast('Ablauf wird abgebrochen...');
-                stopRequested = true;
-                btn.textContent = 'Stoppt...';
-                btn.classList.add('lea-btn-disabled');
-            });
-
-            document.body.appendChild(btn);
-        }
-    }
-
-    function updateStartButtonState(running) {
-        const btn = document.getElementById(INJECT_BTN_ID);
-        if (btn) {
-            const inner = btn.querySelector('div');
-            if (inner) {
-                inner.innerHTML = running ? 'STOP' : 'Auto<br>Refill';
-                if (running) {
-                    btn.classList.add('lea-btn-running');
-                } else {
-                    btn.classList.remove('lea-btn-running');
-                }
-            }
-        }
-        updateFloatingStopButton(running);
-    }
-
-    function injectStartButton() {
-        const isBuildingOverview = !!document.querySelector('[data-tutorial-id="filter_by_building_type"]');
-
-        if (!isBuildingOverview) {
-            const existing = document.getElementById(INJECT_BTN_ID);
-            if (existing) existing.remove();
-            return;
-        }
-
-        if (document.getElementById(INJECT_BTN_ID)) return;
-
-        const blueprintBtn = document.querySelector('button[data-tutorial-id="building-list-item-add"]');
-
-        if (!blueprintBtn) return;
-
-        const btn = document.createElement('button');
-        btn.id = INJECT_BTN_ID;
-        btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
-        if (isAutoRunning) {
-            btn.classList.add('lea-btn-running');
-        }
-        btn.title = 'Automatischen Rohstoff-Nachschub für alle (AF) Gebäude starten';
-
-        const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.innerHTML = isAutoRunning ? 'STOP' : 'Auto<br>Refill';
-        btn.appendChild(inner);
-
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (isAutoRunning) {
-                stopRequested = true;
-            } else {
-                executeAutoRefill();
-            }
-        });
-
-        blueprintBtn.parentNode.insertBefore(btn, blueprintBtn);
-    }
-
-    // =========================================================================
-    // INIT & OBSERVER
-    // =========================================================================
-
-    function init() {
-        console.log('[LEA Auto Supply Refill] Initialisiert v1.0.4 (Voll-Automatikmodus)');
-        injectStartButton();
-
-        let isHandlingMutations = false;
-        const observer = new MutationObserver(() => {
-            if (!isHandlingMutations) {
-                isHandlingMutations = true;
-                requestAnimationFrame(() => {
-                    injectStartButton();
-                    isHandlingMutations = false;
-                });
-            }
-        });
-
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
-
-    if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
 })();

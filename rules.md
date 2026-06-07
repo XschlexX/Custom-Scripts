@@ -49,6 +49,10 @@ Dieses Dokument fasst alle zentralen Regeln, Design-Richtlinien und technischen 
 *   **Warten auf UI-Elemente (Keine statischen Timeouts/Timer):**
     *   Verwenden Sie zum Warten auf das Erscheinen oder Verschwinden von DOM-Elementen (z. B. beim Laden von Dialogen, Linieneinstellungen oder Menü-Kacheln) immer die standardisierten asynchronen Hilfsfunktionen `waitForElementToAppear(selector, timeout)` und `waitForElementToDisappear(selector, timeout)`.
     *   Vermeiden Sie nackte `setTimeout`-Aufrufe oder feste Timer, um auf asynchrone Spieländerungen zu warten. Es muss stattdessen dynamisch geprüft werden, ob das gesuchte Element bereits erschienen bzw. verschwunden ist. Damit läuft das Skript maximal performant und fehlerfrei.
+*   **Klick-Simulation (simulateClick vs. native.click()):**
+    *   Verwenden Sie für komplexe Spiel-UI-Elemente, verschachtelte Bild-Icons (z. B. den Transport-Assistenten, Quest-Objective-Pfeile) oder Custom Vue-Komponenten immer die Hilfsfunktion `simulateClick(element)` aus den Shared Helpers.
+    *   Diese simuliert die vollständige Klick-Kette (`mousedown` -> `mouseup` -> `click`) mit Event-Bubbling, was für moderne Frameworks wie Vue.js oft notwendig ist, um die Logik auszulösen.
+    *   Die native Methode `element.click()` darf nur für einfache, native HTML-Buttons verwendet werden. Im Zweifel sollte immer `simulateClick` bevorzugt werden, da sie robuster und fehlerresistenter gegenüber asynchronen UI-Zuständen ist.
 
 ---
 
