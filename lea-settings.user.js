@@ -2,7 +2,7 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.1
+// @version      1.0.2
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
@@ -187,10 +187,12 @@
      * @param {object} inputs - Map von Setting-Key zu Input-Element.
      */
     function saveSettingsFromInputs(inputs) {
-        LEA_CONFIG.settings.buildingPrefix = inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix;
-        LEA_CONFIG.settings.maxDeliveryTimeMinutes = parseInt(inputs.maxDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxDeliveryTimeMinutes;
+        const settings = {
+            buildingPrefix: inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix,
+            maxDeliveryTimeMinutes: parseInt(inputs.maxDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxDeliveryTimeMinutes
+        };
 
-        LEA_CONFIG.saveSettings();
+        LEA_CONFIG.saveSettings(settings);
         showToast('✅ Einstellungen gespeichert!');
     }
 

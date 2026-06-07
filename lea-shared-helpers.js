@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.4
+// @version      1.0.5
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -43,29 +43,34 @@ if (typeof window.LEA_CONFIG === 'undefined') {
 
     /**
      * Lädt gespeicherte Einstellungen aus localStorage und merged sie mit den Defaults.
-     * Falls nichts gespeichert ist, werden die Defaults verwendet.
+     * Definiert als Getter, damit Änderungen in localStorage immer sofort geladen werden.
      */
-    window.LEA_CONFIG.settings = (function () {
-        try {
-            const stored = localStorage.getItem('lea-settings');
-            if (stored) {
-                return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+    Object.defineProperty(window.LEA_CONFIG, 'settings', {
+        get: function () {
+            try {
+                const stored = localStorage.getItem('lea-settings');
+                if (stored) {
+                    return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+                }
+            } catch (e) {
+                console.warn('[LEA Helpers] Settings konnten nicht geladen werden:', e);
             }
-        } catch (e) {
-            console.warn('[LEA Helpers] Settings konnten nicht geladen werden:', e);
-        }
-        return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS };
-    })();
+            return { ...window.LEA_CONFIG.SETTINGS_DEFAULTS };
+        },
+        configurable: true,
+        enumerable: true
+    });
 
     /**
-     * Speichert die aktuellen Settings in localStorage und dispatcht ein CustomEvent.
+     * Speichert die angegebenen Settings in localStorage und dispatcht ein CustomEvent.
      * Andere Skripte können auf 'lea-settings-changed' lauschen.
      */
-    window.LEA_CONFIG.saveSettings = function () {
+    window.LEA_CONFIG.saveSettings = function (settings) {
         try {
-            localStorage.setItem('lea-settings', JSON.stringify(window.LEA_CONFIG.settings));
-            document.dispatchEvent(new CustomEvent('lea-settings-changed', { detail: { ...window.LEA_CONFIG.settings } }));
-            console.log('[LEA Helpers] Settings gespeichert:', window.LEA_CONFIG.settings);
+            const dataToSave = settings || window.LEA_CONFIG.settings;
+            localStorage.setItem('lea-settings', JSON.stringify(dataToSave));
+            document.dispatchEvent(new CustomEvent('lea-settings-changed', { detail: { ...dataToSave } }));
+            console.log('[LEA Helpers] Settings gespeichert:', dataToSave);
         } catch (e) {
             console.error('[LEA Helpers] Settings konnten nicht gespeichert werden:', e);
         }
