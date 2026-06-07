@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         LEA Shared Styles (DEV)
+// @name         [DEV] LEA Shared Styles
 // @namespace    lea-tools-dev
 // @version      1.0.0
 // @match        https://game.logistics-empire.com/*
