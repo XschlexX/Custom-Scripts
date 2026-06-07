@@ -356,6 +356,75 @@
     background: #0369a1 !important;
 }
 
+/* Cancel Button Variant */
+.lea-modal-cancel-btn {
+    background: #4a5568 !important;
+}
+
+.lea-modal-cancel-btn:hover {
+    background: #2d3748 !important;
+}
+
+/* Settings Gear Button (floating, top-left) */
+.lea-settings-gear-btn {
+    position: fixed !important;
+    top: 15px !important;
+    left: 15px !important;
+    z-index: 999998 !important;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    background: rgba(26, 32, 44, 0.9) !important;
+    border: 2px solid #4a5568 !important;
+    color: white !important;
+    font-size: 22px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    transition: transform 0.2s ease, border-color 0.2s ease !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+}
+
+.lea-settings-gear-btn:hover {
+    transform: scale(1.1) !important;
+    border-color: #38bdf8 !important;
+}
+
+/* Settings Modal Row (label left, input right) */
+.lea-settings-row {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+}
+
+/* Settings Input Fields */
+.lea-settings-input {
+    width: 120px !important;
+    padding: 6px 10px !important;
+    background: #1a202c !important;
+    border: 1px solid #4a5568 !important;
+    border-radius: 6px !important;
+    color: #f7fafc !important;
+    font-size: 14px !important;
+    font-family: system-ui, -apple-system, sans-serif !important;
+    outline: none !important;
+    text-align: center !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.lea-settings-input:focus {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
+}
+
+.lea-settings-input::placeholder {
+    color: #718096 !important;
+}
+
 @keyframes leaModalFadeIn {
     from {
         opacity: 0;

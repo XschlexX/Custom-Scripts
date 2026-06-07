@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.12
+// @version      1.1.13
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -18,10 +18,8 @@
     // =========================================================================
     // KONFIGURATION & ZUSTANDS-VARIABLEN
     // =========================================================================
-    const MAX_DELIVERY_TIME_MINUTES = LEA_CONFIG.MAX_DELIVERY_TIME_MINUTES;
     const INJECT_BTN_ID = 'lea-supply-refill-btn';
     const FLOATING_STOP_BTN_ID = 'lea-supply-floating-stop-btn';
-    const BUILDING_PREFIX = 'Test';
 
     let isAutoRunning = false;
     let stopRequested = false;
@@ -86,7 +84,7 @@
         if (isAutoRunning) {
             btn.classList.add('lea-btn-running');
         }
-        btn.title = 'Automatischen Rohstoff-Nachschub für alle (AF) Gebäude starten';
+        btn.title = `Automatischen Rohstoff-Nachschub für alle ${LEA_CONFIG.settings.buildingPrefix} Gebäude starten`;
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
@@ -182,7 +180,7 @@
 
         try {
             // Suche einmalig am Start ausführen
-            const searchSuccess = await triggerSearch(BUILDING_PREFIX);
+            const searchSuccess = await triggerSearch(LEA_CONFIG.settings.buildingPrefix);
             if (!searchSuccess) {
                 showToast('Fehler: Suche konnte nicht gestartet werden.');
                 return;
@@ -305,8 +303,8 @@
 
                     if (!timeResult) {
                         console.log('[LEA Supply Refill] Lieferzeit konnte nicht gelesen werden, starte Transport...');
-                    } else if (timeResult.seconds > MAX_DELIVERY_TIME_MINUTES * 60) {
-                        console.warn(`[LEA Supply Refill] Lieferzeit zu lang (${timeResult.timeString} > ${MAX_DELIVERY_TIME_MINUTES} Min). Breche ab!`);
+                    } else if (timeResult.seconds > LEA_CONFIG.settings.maxDeliveryTimeMinutes * 60) {
+                        console.warn(`[LEA Supply Refill] Lieferzeit zu lang (${timeResult.timeString} > ${LEA_CONFIG.settings.maxDeliveryTimeMinutes} Min). Breche ab!`);
                         showToast(`Zeit zu lang (${timeResult.timeString}). Übersprungen!`);
                         return { status: 'skipped_time' };
                     } else {
@@ -474,7 +472,7 @@
             .filter(item =>
                 !isNaN(item.index) &&
                 item.card !== null &&
-                item.card.textContent.toUpperCase().includes(BUILDING_PREFIX.toUpperCase())
+                item.card.textContent.toUpperCase().includes(LEA_CONFIG.settings.buildingPrefix.toUpperCase())
             )
             .sort((a, b) => a.index - b.index);
     }

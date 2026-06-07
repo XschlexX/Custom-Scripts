@@ -19,7 +19,7 @@
     // -----------------------------------------------------------------------
     const FILTER_BAR_SELECTOR = '.bb-filter-and-sort-bar';
     const INJECT_BTN_ID = 'lea-custom-stop-filter-btn';
-    const NEXT_BTN_ID  = 'lea-custom-next-btn';
+    const NEXT_BTN_ID = 'lea-custom-next-btn';
     const BUILDING_CARD_SELECTOR = '.building-card';
     const STOP_ICON_SELECTOR = 'img[src*="icon_blocked"]';
 
@@ -30,9 +30,9 @@
     };
 
     // Auto-Scroll Zustand
-    let scrollRafId       = null;
+    let scrollRafId = null;
     let lastMatchScrollTop = null; // scrollTop-Wert, bei dem der letzte Treffer oben lag
-    let lastMatchHeight    = 200;  // Höhe des letzten Treffer-Gebäudes (Schätzwert als Fallback)
+    let lastMatchHeight = 200;  // Höhe des letzten Treffer-Gebäudes (Schätzwert als Fallback)
 
     // -----------------------------------------------------------------------
     // GLOBALER KLICK-LISTENER (für Dropdown)
@@ -141,10 +141,10 @@
         }
 
         const btn = document.createElement('button');
-        btn.id        = NEXT_BTN_ID;
-        btn.type      = 'button';
+        btn.id = NEXT_BTN_ID;
+        btn.type = 'button';
         btn.className = 'lea-next-match-btn';
-        btn.title     = 'Next Match';
+        btn.title = 'Next Match';
         btn.textContent = 'Next';
 
         btn.addEventListener('click', (e) => {
@@ -184,10 +184,10 @@
             cont0.scrollTop = 0;
         }
 
-        let lastScrollTopVal  = -1;
+        let lastScrollTopVal = -1;
         let stepsWithoutChange = 0;
         const SCROLL_STEP = 300; // px pro Schritt
-        const MAX_STALL   = 5;   // Frames ohne Fortschritt -> Abbruch
+        const MAX_STALL = 5;   // Frames ohne Fortschritt -> Abbruch
 
         function step() {
             const cont = getScrollContainer();
@@ -209,13 +209,13 @@
 
             if (match) {
                 // Treffer bündig am oberen Container-Rand positionieren
-                const matchTop      = match.getBoundingClientRect().top;
+                const matchTop = match.getBoundingClientRect().top;
                 const targetScrollTop = cont.scrollTop + (matchTop - contRect.top);
                 cont.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
 
                 // Position und Höhe für "Weiter" merken
                 lastMatchScrollTop = targetScrollTop;
-                lastMatchHeight    = match.offsetHeight || 200;
+                lastMatchHeight = match.offsetHeight || 200;
 
                 scrollRafId = null;
                 injectNextButton(); // "▼ Weiter"-Button einblenden
@@ -238,7 +238,7 @@
             }
 
             lastScrollTopVal = cont.scrollTop;
-            cont.scrollTop  += SCROLL_STEP;
+            cont.scrollTop += SCROLL_STEP;
 
             // Kurze Pause, damit das Spiel neue Gebäude rendern kann
             scrollRafId = setTimeout(() => {

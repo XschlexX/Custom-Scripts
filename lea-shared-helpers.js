@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.2
+// @version      1.0.3
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -29,6 +29,45 @@ var LEA_CONFIG = {
     // Handelszentrum-Spezifisches
     ALL_REWARDS_BTN_SELECTOR: 'button.variant--normal img[src*="collect_order"]',
     HANDELSZENTRUM_HEADER_SRC: 'img[src*="page_header_orders-"]'
+};
+
+// =========================================================================
+// SETTINGS-MANAGEMENT (localStorage-basiert)
+// =========================================================================
+LEA_CONFIG.SETTINGS_KEY = 'lea-settings';
+LEA_CONFIG.SETTINGS_DEFAULTS = {
+    buildingPrefix: '(AF)',
+    maxDeliveryTimeMinutes: 15
+};
+
+/**
+ * Lädt gespeicherte Einstellungen aus localStorage und merged sie mit den Defaults.
+ * Falls nichts gespeichert ist, werden die Defaults verwendet.
+ */
+LEA_CONFIG.settings = (function () {
+    try {
+        const stored = localStorage.getItem('lea-settings');
+        if (stored) {
+            return { ...LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+        }
+    } catch (e) {
+        console.warn('[LEA Helpers] Settings konnten nicht geladen werden:', e);
+    }
+    return { ...LEA_CONFIG.SETTINGS_DEFAULTS };
+})();
+
+/**
+ * Speichert die aktuellen Settings in localStorage und dispatcht ein CustomEvent.
+ * Andere Skripte können auf 'lea-settings-changed' lauschen.
+ */
+LEA_CONFIG.saveSettings = function () {
+    try {
+        localStorage.setItem('lea-settings', JSON.stringify(LEA_CONFIG.settings));
+        document.dispatchEvent(new CustomEvent('lea-settings-changed', { detail: { ...LEA_CONFIG.settings } }));
+        console.log('[LEA Helpers] Settings gespeichert:', LEA_CONFIG.settings);
+    } catch (e) {
+        console.error('[LEA Helpers] Settings konnten nicht gespeichert werden:', e);
+    }
 };
 
 // =========================================================================
