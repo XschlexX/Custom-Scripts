@@ -337,6 +337,7 @@
 .lea-modal-btn-container {
     display: flex !important;
     justify-content: center !important;
+    gap: 12px !important;
 }
 
 .lea-modal-close-btn {

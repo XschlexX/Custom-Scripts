@@ -19,8 +19,13 @@
     const SETTINGS_MODAL_ID = 'lea-settings-modal';
 
     // =========================================================================
-    // INITIALISIERUNG
+    // INITIALISIERUNG & SANITY CHECKS
     // =========================================================================
+
+    if (typeof LEA_CONFIG === 'undefined' || !LEA_CONFIG.settings) {
+        console.error('[LEA Settings] LEA_CONFIG oder Settings nicht geladen. Bitte überprüfen Sie, ob lea-shared-helpers.js korrekt geladen wird.');
+        return;
+    }
 
     injectGearButton();
 
@@ -116,7 +121,6 @@
         // Buttons
         const btnContainer = document.createElement('div');
         btnContainer.className = 'lea-modal-btn-container';
-        btnContainer.style.cssText = 'gap: 12px !important;';
 
         const saveBtn = document.createElement('button');
         saveBtn.className = 'lea-modal-close-btn';
