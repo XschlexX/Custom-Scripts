@@ -2,12 +2,12 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.10
+// @version      1.1.11
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.6
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.7
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // ==/UserScript==
@@ -28,8 +28,7 @@
 
     // Bild-Dateinamen für Buttons (können sich bei Spiel-Updates ändern)
     const IMG_AUTO_SELECT = LEA_CONFIG.IMG_AUTO_SELECT;      // Frau-Icon (Automatisch wählen)
-    // const IMG_CONTINUE = LEA_CONFIG.IMG_CONTINUE;         // Fortschritts-Icon  
-    const IMG_IN_PROGRESS = LEA_CONFIG.IMG_IN_PROGRESS;      // Doppelpfeil-Icon (Weiter/Starten)
+    const IMG_CONTINUE = LEA_CONFIG.IMG_CONTINUE;            // Array von Bildnamen für Weiter/Starten
 
     let isAutoRunning = false;
     let stopRequested = false;
@@ -179,14 +178,15 @@
                     const pageText = document.body.textContent || '';
                     const isVehicleWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität/);
 
+                    const continueSelector = IMG_CONTINUE.map(img => `${ASSISTANT_BTN_SELECTOR} img[src*="${img}"]`).join(', ');
                     if (!isVehicleWindow) {
                         // Phase 1: Produktauswahl (Angeforderte Waren)
                         if (src.includes(IMG_AUTO_SELECT)) {
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Frau (Produkte automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_IN_PROGRESS}"]`, 2000);
-                        } else if (src.includes(IMG_IN_PROGRESS)) {
+                            await waitForElementToAppear(continueSelector, 2000);
+                        } else if (IMG_CONTINUE.some(img => src.includes(img))) {
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Doppelpfeil (Weiter zur Fahrzeugauswahl)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Frau im neuen Fenster erscheint
@@ -198,8 +198,8 @@
                             console.log('[LEF Auto Assistant] Fahrzeugauswahl: Klicke Frau (Fahrzeug automatisch wählen)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_IN_PROGRESS}"]`, 2000);
-                        } else if (src.includes(IMG_IN_PROGRESS)) {
+                            await waitForElementToAppear(continueSelector, 2000);
+                        } else if (IMG_CONTINUE.some(img => src.includes(img))) {
                             // Zeit dynamisch abfragen statt fix zu warten
                             let result = getDeliveryTimeSeconds();
                             let waitTime = 0;

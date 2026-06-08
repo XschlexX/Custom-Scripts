@@ -2,12 +2,12 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.16
+// @version      1.1.17
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.6
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.7
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // ==/UserScript==
@@ -284,13 +284,14 @@
             const pageText = document.body.textContent || '';
             const isVehicleWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität/);
 
+            const continueSelector = LEA_CONFIG.IMG_CONTINUE.map(img => `${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${img}"]`).join(', ');
             if (!isVehicleWindow) {
                 // Phase 1: Produktauswahl
                 if (src.includes(LEA_CONFIG.IMG_AUTO_SELECT)) {
                     console.log('[LEA Supply Refill] Phase 1: Klicke Frau (Produkte automatisch wählen)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_IN_PROGRESS}"]`, 2000);
-                } else if (src.includes(LEA_CONFIG.IMG_IN_PROGRESS)) {
+                    await waitForElementToAppear(continueSelector, 2000);
+                } else if (LEA_CONFIG.IMG_CONTINUE.some(img => src.includes(img))) {
                     console.log('[LEA Supply Refill] Phase 1: Klicke Doppelpfeil (Weiter)...');
                     simulateClick(currentBtn);
                     await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_AUTO_SELECT}"]`, 2000);
@@ -300,8 +301,8 @@
                 if (src.includes(LEA_CONFIG.IMG_AUTO_SELECT)) {
                     console.log('[LEA Supply Refill] Phase 2: Klicke Frau (Fahrzeuge automatisch wählen)...');
                     simulateClick(currentBtn);
-                    await waitForElementToAppear(`${LEA_CONFIG.ASSISTANT_BTN_SELECTOR} img[src*="${LEA_CONFIG.IMG_IN_PROGRESS}"]`, 2000);
-                } else if (src.includes(LEA_CONFIG.IMG_IN_PROGRESS)) {
+                    await waitForElementToAppear(continueSelector, 2000);
+                } else if (LEA_CONFIG.IMG_CONTINUE.some(img => src.includes(img))) {
                     let timeResult = getDeliveryTimeSeconds();
                     let waitTime = 0;
                     while (!timeResult && waitTime < 2000) {
