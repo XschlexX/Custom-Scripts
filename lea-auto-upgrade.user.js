@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.5
+// @version      1.1.6
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -104,7 +104,13 @@
 
         for (const term of terms) {
             if (cardText.includes(term)) {
-                console.log(`[LEA Upgrade] Überspringe Gebäude wegen Ausschlusskriterium "${term}":`, cardText.replace(/\s+/g, ' ').trim());
+                // Versuche, den echten Namen und die Straße für ein schöneres Log auszulesen
+                const title = card.querySelector('.text-h2, p')?.textContent?.trim() || '';
+                const street = card.querySelector('.text-p2-700, p:nth-of-type(2)')?.textContent?.trim() || '';
+                const cleanName = street ? `${title} (${street})` : title;
+                const logName = cleanName || cardText.replace(/\s+/g, ' ').trim();
+
+                console.log(`[LEA Upgrade] Überspringe Gebäude wegen Ausschlusskriterium "${term}":`, logName);
                 return true;
             }
         }

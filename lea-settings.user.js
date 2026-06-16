@@ -2,7 +2,7 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.6
+// @version      1.0.7
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
@@ -132,10 +132,10 @@
         // Setting: Upgrade überspringen (Komma-getrennt)
         const excludeRow = createSettingRow({
             icon: '🚫',
-            label: 'Upg. überspringen (Komma)',
+            label: 'Upg. überspringen (Komma-getrennt)',
             type: 'text',
             value: LEA_CONFIG.settings.excludeUpgradeNames || '',
-            placeholder: 'Fußballtrikot, Event'
+            placeholder: 'Fußball, Event'
         });
         list.appendChild(excludeRow.row);
         inputs.excludeUpgradeNames = excludeRow.input;
