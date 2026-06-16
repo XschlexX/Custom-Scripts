@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.14
+// @version      1.1.15
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -90,10 +90,19 @@
         // Finde den Titel des Auftrags (Kundenname)
         let parent = btn.parentElement;
         let title = '';
+        let street = '';
         while (parent && parent !== document.body) {
             const titleEl = parent.querySelector('.text-h2, [class*="text-h2"]');
             if (titleEl) {
-                title = titleEl.textContent.trim();
+                const container = titleEl.closest('div');
+                if (container) {
+                    const titleSpan = container.querySelector('.text-h2, [class*="text-h2"]');
+                    const streetSpan = container.querySelector('.text-p2-400, .text-p2-700, [class*="text-p2"]');
+                    title = titleSpan ? titleSpan.textContent.trim() : titleEl.textContent.trim();
+                    street = streetSpan ? streetSpan.textContent.trim() : '';
+                } else {
+                    title = titleEl.textContent.trim();
+                }
                 break;
             }
             parent = parent.parentElement;
@@ -106,7 +115,8 @@
 
         for (const term of terms) {
             if (titleLower.includes(term)) {
-                console.log(`[LEF Auto Assistant] Überspringe Auftrag wegen Ausschlusskriterium "${term}": ${title}`);
+                const logName = street ? `${title} (${street})` : title;
+                console.log(`[LEF Auto Assistant] Überspringe Auftrag wegen Ausschlusskriterium "${term}": ${logName}`);
                 return true;
             }
         }
