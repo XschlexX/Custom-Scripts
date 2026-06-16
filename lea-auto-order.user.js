@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.16
+// @version      1.1.17
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -129,53 +129,43 @@
      * @returns {boolean} True, wenn mindestens eine Ware unvollständig ist.
      */
     function hasMissingGoods() {
-        const header = Array.from(document.querySelectorAll('div, span, p, h1, h2, h3'))
-            .find(el => el.textContent.trim() === 'Angeforderte Waren');
-
-        if (!header) {
-            console.log('[LEF Auto Assistant] Header "Angeforderte Waren" nicht gefunden.');
+        const resourcesContainer = document.querySelector('[data-tutorial-id="transport-requested-resources"]');
+        if (!resourcesContainer) {
+            console.log('[LEF Auto Assistant] Container "transport-requested-resources" nicht gefunden.');
             return false;
         }
 
-        const section = header.parentElement;
-        if (!section) return false;
-
-        const badges = Array.from(section.querySelectorAll('*'))
-            .filter(el => {
-                if (el.children.length > 0) return false;
-                if (el.closest('[class*="building-card"], [class*="building"]')) return false;
-
-                const text = el.textContent.trim();
-                return /^\d+\s*\/\s*[\d.,KkMm]+$/.test(text);
-            });
-
-        if (badges.length === 0) {
-            console.log('[LEF Auto Assistant] Keine Waren-Badges unter "Angeforderte Waren" gefunden.');
+        const amountLabels = resourcesContainer.querySelectorAll('.bb-amount-label');
+        if (amountLabels.length === 0) {
+            console.log('[LEF Auto Assistant] Keine bb-amount-label im Container gefunden.');
             return false;
         }
 
-        function parseQuantity(str) {
-            str = str.toUpperCase().replace(',', '.');
-            let multiplier = 1;
-            if (str.endsWith('K')) {
-                multiplier = 1000;
-                str = str.slice(0, -1);
-            } else if (str.endsWith('M')) {
-                multiplier = 1000000;
-                str = str.slice(0, -1);
+        function getNumberFromFlow(el) {
+            if (!el.shadowRoot) {
+                // Fallback falls kein Shadow DOM vorhanden ist
+                const text = el.textContent.trim().replace('/', '');
+                return parseInt(text, 10);
             }
-            return parseFloat(str) * multiplier;
+            const activeDigits = Array.from(el.shadowRoot.querySelectorAll('.digit__num:not([inert])'));
+            const numberStr = activeDigits.map(d => d.textContent.trim()).join('');
+            return parseInt(numberStr, 10);
         }
 
-        for (const badge of badges) {
-            const text = badge.textContent.trim();
-            const match = text.match(/^(\d+)\s*\/\s*([\d.,KkMm]+)$/);
-            if (match) {
-                const current = parseInt(match[1], 10);
-                const target = parseQuantity(match[2]);
+        for (const label of amountLabels) {
+            const flows = label.querySelectorAll('number-flow-vue');
+            if (flows.length >= 2) {
+                const current = getNumberFromFlow(flows[0]);
+                const target = getNumberFromFlow(flows[1]);
+
+                if (isNaN(current) || isNaN(target)) {
+                    console.log(`[LEF Auto Assistant] Fehler beim Parsen der Mengen (current: ${current}, target: ${target})`);
+                    continue;
+                }
+
                 if (current < target) {
-                    console.log(`[LEF Auto Assistant] Ware unvollständig: ${text} (${current} < ${target})`);
-                    return true;
+                    console.log(`[LEF Auto Assistant] Ware unvollständig: ${current} / ${target}`);
+                    return true; // Mindestens eine Ware ist unvollständig
                 }
             }
         }
