@@ -2,12 +2,12 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.13
+// @version      1.1.14
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.9
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.10
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // ==/UserScript==
@@ -78,6 +78,41 @@
         }
     }
 
+    /**
+     * Prüft, ob ein Auftrag anhand des Kundennamens übersprungen werden soll.
+     * @param {HTMLElement} btn - Der Start-Button des Auftrags.
+     * @returns {boolean} True, wenn der Auftrag übersprungen werden soll.
+     */
+    function shouldSkipOrder(btn) {
+        const excludeSetting = LEA_CONFIG.settings.excludeOrderNames;
+        if (!excludeSetting) return false;
+
+        // Finde den Titel des Auftrags (Kundenname)
+        let parent = btn.parentElement;
+        let title = '';
+        while (parent && parent !== document.body) {
+            const titleEl = parent.querySelector('.text-h2, [class*="text-h2"]');
+            if (titleEl) {
+                title = titleEl.textContent.trim();
+                break;
+            }
+            parent = parent.parentElement;
+        }
+
+        if (!title) return false;
+
+        const titleLower = title.toLowerCase();
+        const terms = excludeSetting.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+
+        for (const term of terms) {
+            if (titleLower.includes(term)) {
+                console.log(`[LEF Auto Assistant] Überspringe Auftrag wegen Ausschlusskriterium "${term}": ${title}`);
+                return true;
+            }
+        }
+        return false;
+    }
+
     function isHandelszentrumOpen() {
         return !!document.querySelector(HANDELSZENTRUM_HEADER_SRC);
     }
@@ -145,6 +180,12 @@
                     // Keine weiteren offenen Aufträge gefunden oder Stop
                     hasMoreOrders = false;
                     break;
+                }
+
+                // Prüfung auf Ausschlusskriterien für Aufträge
+                if (shouldSkipOrder(nextOrderBtn)) {
+                    skipIndex++;
+                    continue;
                 }
 
                 console.log('[LEF Auto Assistant] Auftrag gefunden, betrete Auftrag (Klick auf Klemmbrett)...');

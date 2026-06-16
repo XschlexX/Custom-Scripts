@@ -2,12 +2,12 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.7
+// @version      1.0.8
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.9
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.10
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // ==/UserScript==
@@ -140,6 +140,17 @@
         list.appendChild(excludeRow.row);
         inputs.excludeUpgradeNames = excludeRow.input;
 
+        // Setting: Aufträge überspringen (Komma-getrennt)
+        const excludeOrderRow = createSettingRow({
+            icon: '🚫',
+            label: 'Auftr. überspringen (Komma-getrennt)',
+            type: 'text',
+            value: LEA_CONFIG.settings.excludeOrderNames || '',
+            placeholder: 'Stadion, Kunde'
+        });
+        list.appendChild(excludeOrderRow.row);
+        inputs.excludeOrderNames = excludeOrderRow.input;
+
         modal.appendChild(list);
 
         // Buttons
@@ -215,7 +226,8 @@
             buildingPrefix: inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix,
             maxOrderDeliveryTimeMinutes: parseInt(inputs.maxOrderDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxOrderDeliveryTimeMinutes,
             maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes,
-            excludeUpgradeNames: inputs.excludeUpgradeNames.value.trim()
+            excludeUpgradeNames: inputs.excludeUpgradeNames.value.trim(),
+            excludeOrderNames: inputs.excludeOrderNames.value.trim()
         };
 
         LEA_CONFIG.saveSettings(settings);
