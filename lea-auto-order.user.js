@@ -2,7 +2,7 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.15
+// @version      1.1.16
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
@@ -123,6 +123,65 @@
         return false;
     }
 
+    /**
+     * Prüft im Produktauswahl-Fenster, ob unter "Angeforderte Waren" 
+     * eine Ware nicht vollständig ausgewählt ist (z. B. 0/281).
+     * @returns {boolean} True, wenn mindestens eine Ware unvollständig ist.
+     */
+    function hasMissingGoods() {
+        const header = Array.from(document.querySelectorAll('div, span, p, h1, h2, h3'))
+            .find(el => el.textContent.trim() === 'Angeforderte Waren');
+
+        if (!header) {
+            console.log('[LEF Auto Assistant] Header "Angeforderte Waren" nicht gefunden.');
+            return false;
+        }
+
+        const section = header.parentElement;
+        if (!section) return false;
+
+        const badges = Array.from(section.querySelectorAll('*'))
+            .filter(el => {
+                if (el.children.length > 0) return false;
+                if (el.closest('[class*="building-card"], [class*="building"]')) return false;
+
+                const text = el.textContent.trim();
+                return /^\d+\s*\/\s*[\d.,KkMm]+$/.test(text);
+            });
+
+        if (badges.length === 0) {
+            console.log('[LEF Auto Assistant] Keine Waren-Badges unter "Angeforderte Waren" gefunden.');
+            return false;
+        }
+
+        function parseQuantity(str) {
+            str = str.toUpperCase().replace(',', '.');
+            let multiplier = 1;
+            if (str.endsWith('K')) {
+                multiplier = 1000;
+                str = str.slice(0, -1);
+            } else if (str.endsWith('M')) {
+                multiplier = 1000000;
+                str = str.slice(0, -1);
+            }
+            return parseFloat(str) * multiplier;
+        }
+
+        for (const badge of badges) {
+            const text = badge.textContent.trim();
+            const match = text.match(/^(\d+)\s*\/\s*([\d.,KkMm]+)$/);
+            if (match) {
+                const current = parseInt(match[1], 10);
+                const target = parseQuantity(match[2]);
+                if (current < target) {
+                    console.log(`[LEF Auto Assistant] Ware unvollständig: ${text} (${current} < ${target})`);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     function isHandelszentrumOpen() {
         return !!document.querySelector(HANDELSZENTRUM_HEADER_SRC);
     }
@@ -237,7 +296,21 @@
                             currentBtn.click();
                             // Dynamisch warten, bis Doppelpfeil erscheint
                             await waitForElementToAppear(continueSelector, 2000);
+
+                            // Prüfung auf unvollständige Waren
+                            if (hasMissingGoods()) {
+                                console.warn('[LEF Auto Assistant] Waren unvollständig! Breche ab...');
+                                showToast('Waren unvollständig! Übersprungen.');
+                                abortOrder = true;
+                                break;
+                            }
                         } else if (IMG_CONTINUE.some(img => src.includes(img))) {
+                            if (hasMissingGoods()) {
+                                console.warn('[LEF Auto Assistant] Waren unvollständig! Breche ab...');
+                                showToast('Waren unvollständig! Übersprungen.');
+                                abortOrder = true;
+                                break;
+                            }
                             console.log('[LEF Auto Assistant] Produktauswahl: Klicke Doppelpfeil (Weiter zur Fahrzeugauswahl)...');
                             currentBtn.click();
                             // Dynamisch warten, bis Frau im neuen Fenster erscheint
