@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.7
+// @version      1.0.8
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -13,7 +13,6 @@
 // =========================================================================
 if (typeof window.LEA_CONFIG === 'undefined') {
     window.LEA_CONFIG = {
-        MAX_DELIVERY_TIME_MINUTES: 15,
         INPUT_CONTAINER_SELECTOR: '.bb-label-container[tabindex="0"]',
         ASSISTANT_BTN_SELECTOR: 'button[data-tutorial-id="transport-assistant"]',
         FILTER_BAR_SELECTOR: '.bb-filter-and-sort-bar',
@@ -37,7 +36,8 @@ if (typeof window.LEA_CONFIG === 'undefined') {
     window.LEA_CONFIG.SETTINGS_KEY = 'lea-settings';
     window.LEA_CONFIG.SETTINGS_DEFAULTS = {
         buildingPrefix: '(AF)',
-        maxDeliveryTimeMinutes: 15
+        maxOrderDeliveryTimeMinutes: 15,
+        maxSupplyDeliveryTimeMinutes: 15
     };
 
     let cachedSettings = null;
@@ -53,7 +53,18 @@ if (typeof window.LEA_CONFIG === 'undefined') {
             try {
                 const stored = localStorage.getItem('lea-settings');
                 if (stored) {
-                    cachedSettings = { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...JSON.parse(stored) };
+                    const parsed = JSON.parse(stored);
+                    // Migration für alte maxDeliveryTimeMinutes Einstellung
+                    if (parsed.maxDeliveryTimeMinutes !== undefined) {
+                        if (parsed.maxOrderDeliveryTimeMinutes === undefined) {
+                            parsed.maxOrderDeliveryTimeMinutes = parsed.maxDeliveryTimeMinutes;
+                        }
+                        if (parsed.maxSupplyDeliveryTimeMinutes === undefined) {
+                            parsed.maxSupplyDeliveryTimeMinutes = parsed.maxDeliveryTimeMinutes;
+                        }
+                        delete parsed.maxDeliveryTimeMinutes;
+                    }
+                    cachedSettings = { ...window.LEA_CONFIG.SETTINGS_DEFAULTS, ...parsed };
                     return cachedSettings;
                 }
             } catch (e) {

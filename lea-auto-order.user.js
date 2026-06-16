@@ -2,12 +2,12 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.11
+// @version      1.1.12
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.7
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.8
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // ==/UserScript==
@@ -18,7 +18,7 @@
     // =========================================================================
     // KONFIGURATION & SELEKTOREN
     // =========================================================================
-    // MAX_DELIVERY_TIME_MINUTES wird dynamisch aus LEA_CONFIG.settings.maxDeliveryTimeMinutes gelesen
+    // maxOrderDeliveryTimeMinutes wird dynamisch aus LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes gelesen
 
     const ASSISTANT_BTN_SELECTOR = LEA_CONFIG.ASSISTANT_BTN_SELECTOR;
     const ALL_REWARDS_BTN_SELECTOR = LEA_CONFIG.ALL_REWARDS_BTN_SELECTOR;
@@ -71,7 +71,7 @@
         }
 
         const result = getDeliveryTimeSeconds();
-        if (result && result.seconds > LEA_CONFIG.settings.maxDeliveryTimeMinutes * 60) {
+        if (result && result.seconds > LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes * 60) {
             showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString})`);
         } else {
             showTimeWarning(false);
@@ -213,7 +213,7 @@
                                 continue; // Warte weiter im Haupt-Loop
                             }
 
-                            if (result.seconds > LEA_CONFIG.settings.maxDeliveryTimeMinutes * 60) {
+                            if (result.seconds > LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes * 60) {
                                 console.warn(`[LEF Auto Assistant] Lieferzeit zu lang (${result.timeString}). Breche ab und gehe zurück!`);
                                 abortOrder = true;
                                 break;

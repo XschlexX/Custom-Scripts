@@ -2,12 +2,12 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.4
+// @version      1.0.5
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.7
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.8
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // ==/UserScript==
@@ -103,18 +103,31 @@
         list.appendChild(prefixRow.row);
         inputs.buildingPrefix = prefixRow.input;
 
-        // Setting: Max. Lieferzeit
-        const timeRow = createSettingRow({
-            icon: '⏱️',
-            label: 'Max. Lieferzeit (Min)',
+        // Setting: Max. Lieferzeit (Aufträge)
+        const orderTimeRow = createSettingRow({
+            icon: '📦',
+            label: 'Max. Lieferzeit Aufträge (Min)',
             type: 'number',
-            value: LEA_CONFIG.settings.maxDeliveryTimeMinutes,
+            value: LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes,
             min: 1,
             max: 120,
             placeholder: '15'
         });
-        list.appendChild(timeRow.row);
-        inputs.maxDeliveryTimeMinutes = timeRow.input;
+        list.appendChild(orderTimeRow.row);
+        inputs.maxOrderDeliveryTimeMinutes = orderTimeRow.input;
+
+        // Setting: Max. Lieferzeit (Nachschub)
+        const supplyTimeRow = createSettingRow({
+            icon: '🚛',
+            label: 'Max. Lieferzeit Nachschub (Min)',
+            type: 'number',
+            value: LEA_CONFIG.settings.maxSupplyDeliveryTimeMinutes,
+            min: 1,
+            max: 120,
+            placeholder: '15'
+        });
+        list.appendChild(supplyTimeRow.row);
+        inputs.maxSupplyDeliveryTimeMinutes = supplyTimeRow.input;
 
         modal.appendChild(list);
 
@@ -189,7 +202,8 @@
     function saveSettingsFromInputs(inputs) {
         const settings = {
             buildingPrefix: inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix,
-            maxDeliveryTimeMinutes: parseInt(inputs.maxDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxDeliveryTimeMinutes
+            maxOrderDeliveryTimeMinutes: parseInt(inputs.maxOrderDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxOrderDeliveryTimeMinutes,
+            maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes
         };
 
         LEA_CONFIG.saveSettings(settings);

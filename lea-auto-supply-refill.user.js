@@ -2,12 +2,12 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.17
+// @version      1.1.18
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.7
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.8
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // ==/UserScript==
@@ -313,8 +313,8 @@
 
                     if (!timeResult) {
                         console.log('[LEA Supply Refill] Lieferzeit konnte nicht gelesen werden, starte Transport...');
-                    } else if (timeResult.seconds > LEA_CONFIG.settings.maxDeliveryTimeMinutes * 60) {
-                        console.warn(`[LEA Supply Refill] Lieferzeit zu lang (${timeResult.timeString} > ${LEA_CONFIG.settings.maxDeliveryTimeMinutes} Min). Breche ab!`);
+                    } else if (timeResult.seconds > LEA_CONFIG.settings.maxSupplyDeliveryTimeMinutes * 60) {
+                        console.warn(`[LEA Supply Refill] Lieferzeit zu lang (${timeResult.timeString} > ${LEA_CONFIG.settings.maxSupplyDeliveryTimeMinutes} Min). Breche ab!`);
                         showToast(`Zeit zu lang (${timeResult.timeString}). Übersprungen!`);
                         return { status: 'skipped_time' };
                     } else {
