@@ -24,7 +24,7 @@ if (typeof window.LEA_CONFIG === 'undefined') {
 
         // Assistenten-Buttons (Bilder zur Erkennung)
         IMG_AUTO_SELECT: 'auto_select',
-        IMG_CONTINUE: ['in_progress', 'button-continue'],
+        IMG_CONTINUE: ['in_progress', 'button-continue', 'button_continue'],
 
         // Handelszentrum-Spezifisches
         ALL_REWARDS_BTN_SELECTOR: 'button.variant--normal img[src*="collect_order"]',
