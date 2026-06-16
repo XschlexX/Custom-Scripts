@@ -2,12 +2,12 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.4
+// @version      1.1.5
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.9
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-upgrade.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-upgrade.user.js
 // ==/UserScript==
@@ -90,6 +90,27 @@
     // SUCH-FUNKTIONEN FÜR UPGRADES
     // -----------------------------------------------------------------------
 
+    /**
+     * Prüft, ob ein Gebäude anhand seines Namens von Upgrades ausgeschlossen werden soll.
+     * @param {HTMLElement} card - Das Gebäudekarten-Element.
+     * @returns {boolean} True, wenn das Gebäude übersprungen werden soll.
+     */
+    function shouldSkipBuilding(card) {
+        const excludeSetting = LEA_CONFIG.settings.excludeUpgradeNames;
+        if (!excludeSetting) return false;
+
+        const cardText = (card.textContent || '').toLowerCase();
+        const terms = excludeSetting.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+
+        for (const term of terms) {
+            if (cardText.includes(term)) {
+                console.log(`[LEA Upgrade] Überspringe Gebäude wegen Ausschlusskriterium "${term}":`, cardText.replace(/\s+/g, ' ').trim());
+                return true;
+            }
+        }
+        return false;
+    }
+
     function findNextAvailableBuildingArrow() {
         const btnContainers = document.querySelectorAll('[data-tutorial-id="building-list-item-buttons"]');
         for (const container of btnContainers) {
@@ -98,6 +119,9 @@
 
             const hasAvailable = !!card.querySelector(`img[src*="${AVAILABLE_STATUS_SRC}"]`);
             if (!hasAvailable) continue;
+
+            // Name prüfen, ob das Gebäude übersprungen werden soll
+            if (shouldSkipBuilding(card)) continue;
 
             const arrowBtn = container.querySelector(`img[src*="${ARROW_BTN_SRC}"]`)?.closest('button');
             if (arrowBtn && arrowBtn.offsetParent !== null) {

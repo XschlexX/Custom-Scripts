@@ -2,12 +2,12 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.5
+// @version      1.0.6
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.8
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.9
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // ==/UserScript==
@@ -129,6 +129,17 @@
         list.appendChild(supplyTimeRow.row);
         inputs.maxSupplyDeliveryTimeMinutes = supplyTimeRow.input;
 
+        // Setting: Upgrade überspringen (Komma-getrennt)
+        const excludeRow = createSettingRow({
+            icon: '🚫',
+            label: 'Upg. überspringen (Komma)',
+            type: 'text',
+            value: LEA_CONFIG.settings.excludeUpgradeNames || '',
+            placeholder: 'Fußballtrikot, Event'
+        });
+        list.appendChild(excludeRow.row);
+        inputs.excludeUpgradeNames = excludeRow.input;
+
         modal.appendChild(list);
 
         // Buttons
@@ -203,7 +214,8 @@
         const settings = {
             buildingPrefix: inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix,
             maxOrderDeliveryTimeMinutes: parseInt(inputs.maxOrderDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxOrderDeliveryTimeMinutes,
-            maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes
+            maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes,
+            excludeUpgradeNames: inputs.excludeUpgradeNames.value.trim()
         };
 
         LEA_CONFIG.saveSettings(settings);

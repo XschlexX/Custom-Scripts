@@ -2,12 +2,12 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.12
+// @version      1.1.13
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.8
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.9
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // ==/UserScript==
