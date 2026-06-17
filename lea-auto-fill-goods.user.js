@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.7
+// @version      1.1.8
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -231,6 +231,7 @@
         if (!maxButtonClicked) console.warn(`[LEA Auto Fill] MAX-Button für "${maxGoodName}" nicht gefunden!`);
 
         console.log("[LEA Auto Fill] Abgeschlossen.");
+        document.dispatchEvent(new CustomEvent('lea-auto-fill-finished', { detail: { success: true } }));
     }
 
     // =========================================================================

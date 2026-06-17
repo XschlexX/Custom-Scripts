@@ -2,12 +2,12 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.21
+// @version      1.1.22
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.10
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.11
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // ==/UserScript==
@@ -38,7 +38,7 @@
      * Initialisiert das Userscript und startet den MutationObserver.
      */
     function init() {
-        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.21 (Voll-Automatikmodus)');
+        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.22 (Voll-Automatikmodus)');
         injectStartButton();
 
         let isHandlingMutations = false;
@@ -204,7 +204,7 @@
             while (true) {
                 if (stopRequested) break;
 
-                const next = await waitForNextCard(lastProcessedIndex);
+                const next = await waitForNextCard(lastProcessedIndex, LEA_CONFIG.settings.buildingPrefix);
                 if (!next) {
                     console.log(`[LEA Supply Refill] Kein höherer Index als ${lastProcessedIndex} gefunden. Ende der Liste.`);
                     break;
@@ -342,23 +342,6 @@
     // =========================================================================
 
     /**
-     * Wartet darauf, dass eine Gebäudekarte mit einem höheren Index als dem zuletzt verarbeiteten sichtbar wird.
-     * @param {number} lastProcessedIndex - Der Index des zuletzt erfolgreich verarbeiteten Gebäudes.
-     * @returns {Promise<object|null>} Die nächste Gebäudekarte oder null, falls das Timeout erreicht wurde.
-     */
-    async function waitForNextCard(lastProcessedIndex) {
-        let indexedAfCards = [];
-        const startLoadTime = Date.now();
-        while (Date.now() - startLoadTime < 4000) {
-            indexedAfCards = getIndexedAfCards();
-            const hasNext = indexedAfCards.some(item => item.index > lastProcessedIndex);
-            if (hasNext) break;
-            await wait(100);
-        }
-        return indexedAfCards.find(item => item.index > lastProcessedIndex) || null;
-    }
-
-    /**
      * Verarbeitet ein einzelnes Gebäude (betritt es, prüft Bedarf, fordert ggf. Rohstoffe an).
      * @param {object} next - Das zu verarbeitende Gebäude ({ index, card }).
      * @returns {Promise<string>} Der Status der Verarbeitung ('success', 'already_full', 'skipped_time', 'failed', 'load_error', 'stopped').
@@ -432,90 +415,7 @@
         }
     }
 
-    /**
-     * Startet eine Suche nach dem angegebenen Begriff über das Suchfeld im Spiel.
-     * @param {string} term - Der Suchbegriff (z. B. "(AF)").
-     * @returns {Promise<boolean>} Gibt true zurück, wenn die Suche erfolgreich gestartet wurde.
-     */
-    async function triggerSearch(term) {
-        console.log(`[LEA Supply Refill] Starte Suche nach: ${term}`);
 
-        let searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
-
-        if (!searchInput) {
-            const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
-            if (searchBtn) {
-                simulateClick(searchBtn);
-                await waitForElementToAppear('input', 1500);
-                searchInput = document.querySelector('input');
-            }
-        }
-
-        if (searchInput) {
-            if (searchInput.value.trim().toUpperCase() === term.toUpperCase()) {
-                return true;
-            }
-
-            searchInput.focus();
-            searchInput.value = term;
-
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-            searchInput.blur();
-
-            await wait(400); // Erhöhtes Warten für reibungsloses Filtern
-            return true;
-        }
-
-        console.warn('[LEA Supply Refill] Suchfeld konnte nicht geöffnet werden.');
-        return false;
-    }
-
-    /**
-     * Setzt die Suche zurück, indem der Löschen-Button (rotes Kreuz) angeklickt wird.
-     * @returns {Promise<boolean>} Gibt true zurück, wenn erfolgreich zurückgesetzt wurde.
-     */
-    async function clearSearch() {
-        console.log('[LEA Supply Refill] Setze Suchfilter zurück...');
-        
-        await navigateBackToBuildingOverview();
-        await wait(200);
-
-        const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
-        if (searchBtn) {
-            const isActive = searchBtn.getAttribute('active') === 'true';
-            if (isActive) {
-                simulateClick(searchBtn);
-                console.log('[LEA Supply Refill] Suchfilter erfolgreich zurückgesetzt.');
-                await wait(400); // Warten, bis die Liste aktualisiert wird
-                return true;
-            } else {
-                console.log('[LEA Supply Refill] Keine aktive Suche zum Zurücksetzen gefunden.');
-            }
-        } else {
-            console.warn('[LEA Supply Refill] Suchfilter-Löschen-Button nicht gefunden.');
-        }
-        return false;
-    }
-
-    /**
-     * Liest alle sichtbaren (AF)-Gebäudekarten aus dem Virtual-Scroll-DOM aus.
-     * Nutzt das data-index Attribut der virtuellen Listenzeilen als absolute Position.
-     * Gibt ein nach index sortiertes Array zurück: [{ index, card }]
-     */
-    function getIndexedAfCards() {
-        return Array.from(document.querySelectorAll('[data-index]'))
-            .map(el => ({
-                index: parseInt(el.getAttribute('data-index'), 10),
-                card: el.querySelector('[class*="building-card"]')
-            }))
-            .filter(item =>
-                !isNaN(item.index) &&
-                item.card !== null &&
-                item.card.textContent.toUpperCase().includes(LEA_CONFIG.settings.buildingPrefix.toUpperCase())
-            )
-            .sort((a, b) => a.index - b.index);
-    }
 
     /**
      * Wartet darauf, dass die Fabrikübersichtsseite vollständig geladen wird.
@@ -535,53 +435,7 @@
         return false;
     }
 
-    /**
-     * Navigiert schrittweise zurück zur Gebäudeübersicht, indem wiederholt der Zurück-Button geklickt wird.
-     * Stoppt, sobald der Filter-Button der Gebäudeübersicht im DOM erkannt wird.
-     * @param {number} [maxSteps=6] - Maximale Anzahl an Zurück-Klicks als Sicherheitslimit.
-     * @returns {Promise<boolean>} true, wenn die Gebäudeübersicht erreicht wurde.
-     */
-    async function navigateBackToBuildingOverview(maxSteps = 6) {
-        console.log('[LEA Supply Refill] Navigiere zurück zur Gebäudeübersicht...');
 
-        for (let i = 0; i < maxSteps; i++) {
-            // Prüfe ob wir bereits in der Gebäudeübersicht sind
-            if (document.querySelector('[data-tutorial-id="filter_by_building_type"]')) {
-                console.log('[LEA Supply Refill] Gebäudeübersicht erreicht.');
-                return true;
-            }
-
-            const backClicked = await goBack();
-            if (!backClicked) {
-                console.warn('[LEA Supply Refill] Kein Zurück-Button gefunden, Abbruch der Navigation.');
-                return false;
-            }
-        }
-
-        const arrived = !!document.querySelector('[data-tutorial-id="filter_by_building_type"]');
-        if (!arrived) {
-            console.warn('[LEA Supply Refill] Gebäudeübersicht nach maxSteps nicht erreicht!');
-        }
-        return arrived;
-    }
-
-    /**
-     * Klickt auf den Zurück-Button, um zur vorherigen Ansicht zu gelangen.
-     * @returns {Promise<boolean>} Gibt true zurück, wenn der Button geklickt wurde.
-     */
-    async function goBack() {
-        const backBtn = document.querySelector('.bottom-navigation button[show-divider]') ||
-            document.querySelector('.bottom-navigation button:first-child') ||
-            document.querySelector('button.variant--neutral img[src*="arrow-back"]')?.closest('button');
-        if (backBtn) {
-            console.log('[LEA Supply Refill] Klicke Zurück-Button...');
-            simulateClick(backBtn);
-            await wait(600);
-            return true;
-        }
-        console.warn('[LEA Supply Refill] Zurück-Button nicht gefunden!');
-        return false;
-    }
 
     // =========================================================================
     // UI: REPORT / STATISTIK MODAL

@@ -2,7 +2,7 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.8
+// @version      1.0.9
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
@@ -102,6 +102,30 @@
         });
         list.appendChild(prefixRow.row);
         inputs.buildingPrefix = prefixRow.input;
+
+        // Setting: Lager-Prefix
+        const storagePrefixRow = createSettingRow({
+            icon: '📦',
+            label: 'Lager-Prefix',
+            type: 'text',
+            value: LEA_CONFIG.settings.storagePrefix,
+            placeholder: '(LS)'
+        });
+        list.appendChild(storagePrefixRow.row);
+        inputs.storagePrefix = storagePrefixRow.input;
+
+        // Setting: Min. freie Kapazität (%)
+        const minEmptyRow = createSettingRow({
+            icon: '📊',
+            label: 'Min. freie Kapazität (%)',
+            type: 'number',
+            value: LEA_CONFIG.settings.minEmptyPercentage,
+            min: 1,
+            max: 100,
+            placeholder: '30'
+        });
+        list.appendChild(minEmptyRow.row);
+        inputs.minEmptyPercentage = minEmptyRow.input;
 
         // Setting: Max. Lieferzeit (Aufträge)
         const orderTimeRow = createSettingRow({
@@ -224,6 +248,8 @@
     function saveSettingsFromInputs(inputs) {
         const settings = {
             buildingPrefix: inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix,
+            storagePrefix: inputs.storagePrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.storagePrefix,
+            minEmptyPercentage: parseInt(inputs.minEmptyPercentage.value) || LEA_CONFIG.SETTINGS_DEFAULTS.minEmptyPercentage,
             maxOrderDeliveryTimeMinutes: parseInt(inputs.maxOrderDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxOrderDeliveryTimeMinutes,
             maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes,
             excludeUpgradeNames: inputs.excludeUpgradeNames.value.trim(),

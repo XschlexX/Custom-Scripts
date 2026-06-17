@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.10
+// @version      1.0.11
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -15,6 +15,7 @@ if (typeof window.LEA_CONFIG === 'undefined') {
     window.LEA_CONFIG = {
         INPUT_CONTAINER_SELECTOR: '.bb-label-container[tabindex="0"]',
         ASSISTANT_BTN_SELECTOR: 'button[data-tutorial-id="transport-assistant"]',
+        NEXT_STEP_BTN_SELECTOR: 'button[data-tutorial-id="transport-next-step"]',
         FILTER_BAR_SELECTOR: '.bb-filter-and-sort-bar',
         MANAGE_BUILDING_SELECTOR: 'button[data-tutorial-id="manage-building-button"]',
         SETTINGS_BTN_SELECTOR: 'button[data-tutorial-id="factory-line-settings-button"]',
@@ -36,6 +37,8 @@ if (typeof window.LEA_CONFIG === 'undefined') {
     window.LEA_CONFIG.SETTINGS_KEY = 'lea-settings';
     window.LEA_CONFIG.SETTINGS_DEFAULTS = {
         buildingPrefix: '(AF)',
+        storagePrefix: '(LS)',
+        minEmptyPercentage: 30,
         maxOrderDeliveryTimeMinutes: 15,
         maxSupplyDeliveryTimeMinutes: 15,
         excludeUpgradeNames: '',
@@ -297,4 +300,131 @@ async function simulateTyping(element, text) {
         t.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
     });
     await wait(30);
+}
+
+// Klickt auf den Zurück-Button, um zur vorherigen Ansicht zu gelangen
+async function goBack() {
+    const backBtn = document.querySelector('.bottom-navigation button[show-divider]') ||
+        document.querySelector('.bottom-navigation button:first-child') ||
+        document.querySelector('button.variant--neutral img[src*="arrow-back"]')?.closest('button');
+    if (backBtn) {
+        console.log('[LEA Helpers] Klicke Zurück-Button...');
+        simulateClick(backBtn);
+        await wait(600);
+        return true;
+    }
+    console.warn('[LEA Helpers] Zurück-Button nicht gefunden!');
+    return false;
+}
+
+// Navigiert schrittweise zurück zur Gebäudeübersicht, indem wiederholt der Zurück-Button geklickt wird
+async function navigateBackToBuildingOverview(maxSteps = 6) {
+    console.log('[LEA Helpers] Navigiere zurück zur Gebäudeübersicht...');
+
+    for (let i = 0; i < maxSteps; i++) {
+        if (document.querySelector('[data-tutorial-id="filter_by_building_type"]')) {
+            console.log('[LEA Helpers] Gebäudeübersicht erreicht.');
+            return true;
+        }
+
+        const backClicked = await goBack();
+        if (!backClicked) {
+            console.warn('[LEA Helpers] Kein Zurück-Button gefunden, Abbruch der Navigation.');
+            return false;
+        }
+    }
+
+    const arrived = !!document.querySelector('[data-tutorial-id="filter_by_building_type"]');
+    if (!arrived) {
+        console.warn('[LEA Helpers] Gebäudeübersicht nach maxSteps nicht erreicht!');
+    }
+    return arrived;
+}
+
+// Startet eine Suche nach dem angegebenen Begriff über das Suchfeld im Spiel
+async function triggerSearch(term) {
+    console.log(`[LEA Helpers] Starte Suche nach: ${term}`);
+
+    let searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
+
+    if (!searchInput) {
+        const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+        if (searchBtn) {
+            simulateClick(searchBtn);
+            await waitForElementToAppear('input', 1500);
+            searchInput = document.querySelector('input');
+        }
+    }
+
+    if (searchInput) {
+        if (searchInput.value.trim().toUpperCase() === term.toUpperCase()) {
+            return true;
+        }
+
+        searchInput.focus();
+        searchInput.value = term;
+
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        searchInput.blur();
+
+        await wait(400); // Erhöhtes Warten für reibungsloses Filtern
+        return true;
+    }
+
+    console.warn('[LEA Helpers] Suchfeld konnte nicht geöffnet werden.');
+    return false;
+}
+
+// Setzt die Suche zurück, indem der Löschen-Button (rotes Kreuz) angeklickt wird
+async function clearSearch() {
+    console.log('[LEA Helpers] Setze Suchfilter zurück...');
+    
+    await navigateBackToBuildingOverview();
+    await wait(200);
+
+    const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+    if (searchBtn) {
+        const isActive = searchBtn.getAttribute('active') === 'true';
+        if (isActive) {
+            simulateClick(searchBtn);
+            console.log('[LEA Helpers] Suchfilter erfolgreich zurückgesetzt.');
+            await wait(400); // Warten, bis die Liste aktualisiert wird
+            return true;
+        } else {
+            console.log('[LEA Helpers] Keine aktive Suche zum Zurücksetzen gefunden.');
+        }
+    } else {
+        console.warn('[LEA Helpers] Suchfilter-Löschen-Button nicht gefunden.');
+    }
+    return false;
+}
+
+// Liest alle sichtbaren Gebäudekarten aus dem Virtual-Scroll-DOM aus, die das angegebene Präfix im Namen tragen
+function getIndexedCards(prefix) {
+    if (!prefix) return [];
+    return Array.from(document.querySelectorAll('[data-index]'))
+        .map(el => ({
+            index: parseInt(el.getAttribute('data-index'), 10),
+            card: el.querySelector('[class*="building-card"]')
+        }))
+        .filter(item =>
+            !isNaN(item.index) &&
+            item.card !== null &&
+            item.card.textContent.toUpperCase().includes(prefix.toUpperCase())
+        )
+        .sort((a, b) => a.index - b.index);
+}
+
+// Wartet darauf, dass eine Gebäudekarte mit einem höheren Index als dem zuletzt verarbeiteten sichtbar wird
+async function waitForNextCard(lastProcessedIndex, prefix) {
+    let indexedCards = [];
+    const startLoadTime = Date.now();
+    while (Date.now() - startLoadTime < 4000) {
+        indexedCards = getIndexedCards(prefix);
+        const hasNext = indexedCards.some(item => item.index > lastProcessedIndex);
+        if (hasNext) break;
+        await wait(100);
+    }
+    return indexedCards.find(item => item.index > lastProcessedIndex) || null;
 }
