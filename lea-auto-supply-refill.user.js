@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.20
+// @version      1.1.21
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -38,7 +38,7 @@
      * Initialisiert das Userscript und startet den MutationObserver.
      */
     function init() {
-        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.13 (Voll-Automatikmodus)');
+        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.21 (Voll-Automatikmodus)');
         injectStartButton();
 
         let isHandlingMutations = false;
@@ -239,6 +239,9 @@
 
                 lastProcessedIndex = next.index;
             }
+
+            // Suchfilter zurücksetzen, bevor Toasts und Report-Modal angezeigt werden
+            await clearSearch();
 
             if (stopRequested) {
                 showToast('Auto Refill gestoppt.');
@@ -465,6 +468,33 @@
         }
 
         console.warn('[LEA Supply Refill] Suchfeld konnte nicht geöffnet werden.');
+        return false;
+    }
+
+    /**
+     * Setzt die Suche zurück, indem der Löschen-Button (rotes Kreuz) angeklickt wird.
+     * @returns {Promise<boolean>} Gibt true zurück, wenn erfolgreich zurückgesetzt wurde.
+     */
+    async function clearSearch() {
+        console.log('[LEA Supply Refill] Setze Suchfilter zurück...');
+        
+        await navigateBackToBuildingOverview();
+        await wait(200);
+
+        const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+        if (searchBtn) {
+            const isActive = searchBtn.getAttribute('active') === 'true';
+            if (isActive) {
+                simulateClick(searchBtn);
+                console.log('[LEA Supply Refill] Suchfilter erfolgreich zurückgesetzt.');
+                await wait(400); // Warten, bis die Liste aktualisiert wird
+                return true;
+            } else {
+                console.log('[LEA Supply Refill] Keine aktive Suche zum Zurücksetzen gefunden.');
+            }
+        } else {
+            console.warn('[LEA Supply Refill] Suchfilter-Löschen-Button nicht gefunden.');
+        }
         return false;
     }
 
