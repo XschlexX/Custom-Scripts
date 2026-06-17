@@ -2,12 +2,12 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.22
+// @version      1.1.23
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.11
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.12
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-supply-refill.user.js
 // ==/UserScript==
@@ -38,7 +38,7 @@
      * Initialisiert das Userscript und startet den MutationObserver.
      */
     function init() {
-        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.22 (Voll-Automatikmodus)');
+        console.log('[LEA Auto Supply Refill] Initialisiert v1.1.23 (Voll-Automatikmodus)');
         injectStartButton();
 
         let isHandlingMutations = false;
@@ -184,6 +184,7 @@
             refilled: 0,
             alreadyFull: 0,
             skippedTime: 0,
+            skippedTimeNames: [],
             failed: 0
         };
 
@@ -222,6 +223,8 @@
                 } else if (result === 'skipped_time') {
                     stats.skippedTime++;
                     consecutiveFailures = 0;
+                    const bName = getBuildingName(next.card, LEA_CONFIG.settings.buildingPrefix);
+                    stats.skippedTimeNames.push(bName);
                 } else if (result === 'failed') {
                     stats.failed++;
                     consecutiveFailures = 0;
@@ -498,6 +501,36 @@
             row.appendChild(valSpan);
             list.appendChild(row);
         });
+
+        if (stats.skippedTimeNames && stats.skippedTimeNames.length > 0) {
+            const separator = document.createElement('div');
+            separator.style.margin = '12px 0 8px 0';
+            separator.style.borderTop = '1px dashed #4b5563';
+            list.appendChild(separator);
+
+            const detailsTitle = document.createElement('div');
+            detailsTitle.style.fontSize = '0.875rem';
+            detailsTitle.style.fontWeight = 'bold';
+            detailsTitle.style.color = '#fbbf24';
+            detailsTitle.style.marginBottom = '6px';
+            detailsTitle.textContent = '⏳ Übersprungene Gebäude (Zeit zu lang):';
+            list.appendChild(detailsTitle);
+
+            stats.skippedTimeNames.forEach(name => {
+                const row = document.createElement('div');
+                row.className = 'lea-modal-row';
+                row.style.paddingLeft = '12px';
+                row.style.fontSize = '0.85rem';
+                row.style.color = '#d1d5db';
+                row.style.justifyContent = 'flex-start';
+                
+                const bullet = document.createElement('span');
+                bullet.textContent = '• ' + name;
+                
+                row.appendChild(bullet);
+                list.appendChild(row);
+            });
+        }
 
         modal.appendChild(list);
 

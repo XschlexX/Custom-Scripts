@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.11
+// @version      1.0.12
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -427,4 +427,26 @@ async function waitForNextCard(lastProcessedIndex, prefix) {
         await wait(100);
     }
     return indexedCards.find(item => item.index > lastProcessedIndex) || null;
+}
+
+// Ermittelt den Namen des Gebäudes aus einer Gebäudekarte (Kachel)
+function getBuildingName(card, prefix) {
+    if (!card) return 'Unbekannt';
+    
+    const elements = Array.from(card.querySelectorAll('div, span, p'));
+    for (const el of elements) {
+        const text = el.textContent.trim();
+        if (text.toUpperCase().includes(prefix.toUpperCase()) && el.children.length === 0) {
+            return text.split('\n')[0].trim();
+        }
+    }
+    
+    for (const el of elements) {
+        const text = el.textContent.trim();
+        if (text.toUpperCase().includes(prefix.toUpperCase())) {
+            return text.split('\n')[0].trim();
+        }
+    }
+    
+    return card.textContent.trim().split('\n')[0].trim().substring(0, 35);
 }

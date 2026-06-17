@@ -2,12 +2,12 @@
 // @name         LEA Auto Storage Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.0
+// @version      1.0.1
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Befüllen von Zwischenlagern (Präfix (LS)) über das Auto Fill Goods Skript.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.11
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.12
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-storage-refill.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-storage-refill.user.js
 // ==/UserScript==
@@ -38,7 +38,7 @@
      * Initialisiert das Userscript und startet den MutationObserver.
      */
     function init() {
-        console.log('[LEA Auto Storage Refill] Initialisiert v1.0.0 (Lager-Automatik)');
+        console.log('[LEA Auto Storage Refill] Initialisiert v1.0.1 (Lager-Automatik)');
         injectStartButton();
 
         let isHandlingMutations = false;
@@ -323,6 +323,7 @@
             refilled: 0,
             alreadyFull: 0,
             skippedTime: 0,
+            skippedTimeNames: [],
             failed: 0
         };
 
@@ -426,8 +427,13 @@
                             await wait(500);
                         } else {
                             const status = assistantResult.status; // 'skipped_time', 'stopped', oder 'failed'
-                            if (status === 'skipped_time') stats.skippedTime++;
-                            else stats.failed++;
+                            if (status === 'skipped_time') {
+                                stats.skippedTime++;
+                                const bName = getBuildingName(next.card, prefix);
+                                stats.skippedTimeNames.push(bName);
+                            } else {
+                                stats.failed++;
+                            }
                             
                             await navigateBackToBuildingOverview();
                             if (status === 'stopped') break;
@@ -523,6 +529,36 @@
             row.appendChild(valSpan);
             list.appendChild(row);
         });
+
+        if (stats.skippedTimeNames && stats.skippedTimeNames.length > 0) {
+            const separator = document.createElement('div');
+            separator.style.margin = '12px 0 8px 0';
+            separator.style.borderTop = '1px dashed #4b5563';
+            list.appendChild(separator);
+
+            const detailsTitle = document.createElement('div');
+            detailsTitle.style.fontSize = '0.875rem';
+            detailsTitle.style.fontWeight = 'bold';
+            detailsTitle.style.color = '#fbbf24';
+            detailsTitle.style.marginBottom = '6px';
+            detailsTitle.textContent = '⏳ Übersprungene Lager (Zeit zu lang):';
+            list.appendChild(detailsTitle);
+
+            stats.skippedTimeNames.forEach(name => {
+                const row = document.createElement('div');
+                row.className = 'lea-modal-row';
+                row.style.paddingLeft = '12px';
+                row.style.fontSize = '0.85rem';
+                row.style.color = '#d1d5db';
+                row.style.justifyContent = 'flex-start';
+                
+                const bullet = document.createElement('span');
+                bullet.textContent = '• ' + name;
+                
+                row.appendChild(bullet);
+                list.appendChild(row);
+            });
+        }
 
         modal.appendChild(list);
 
