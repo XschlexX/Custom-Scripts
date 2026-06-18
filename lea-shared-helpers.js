@@ -454,13 +454,47 @@ function getBuildingName(card, prefix) {
 // Schaltet einen Suchfilter um: Wenn das Suchfeld bereits genau das Präfix enthält,
 // wird die Suche gelöscht. Andernfalls wird die Suche mit dem Präfix gestartet.
 async function toggleSearchFilter(prefix) {
-    const searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
-    const currentVal = searchInput ? searchInput.value.trim() : '';
+    let searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
 
-    if (currentVal.toUpperCase() === prefix.toUpperCase()) {
-        await clearSearch();
-    } else {
-        await triggerSearch(prefix);
+    // Falls die Suche nicht offen ist, öffnen wir sie zuerst
+    if (!searchInput) {
+        const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+        if (searchBtn) {
+            simulateClick(searchBtn);
+            await waitForElementToAppear('input', 1500);
+            searchInput = document.querySelector('input');
+        }
+    }
+
+    if (searchInput) {
+        const currentVal = searchInput.value.trim();
+
+        if (currentVal.toUpperCase() === prefix.toUpperCase()) {
+            // Wenn die Suche aktiv ist, löschen wir sie
+            // Wir suchen nach dem 'x'-Lösch-Button im/am Suchfeld
+            const closeBtn = searchInput.parentElement?.querySelector('button, img[src*="close"], img[src*="cancel"], .icon-close');
+            if (closeBtn) {
+                simulateClick(closeBtn);
+            } else {
+                // Fallback: Wert leeren, Events auslösen und Suchfeld durch Klick schließen
+                searchInput.focus();
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                searchInput.blur();
+
+                const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+                if (searchBtn) simulateClick(searchBtn);
+            }
+        } else {
+            // Wenn die Suche nicht aktiv ist, setzen wir das Präfix
+            searchInput.focus();
+            searchInput.value = prefix;
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            searchInput.blur();
+        }
+        await wait(400); // Warten auf Liste-Update
     }
 }
 

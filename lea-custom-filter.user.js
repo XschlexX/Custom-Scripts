@@ -31,6 +31,7 @@
         paused: false,
         fusion: false
     };
+    let lastActiveSearchPrefix = null;
 
     // Auto-Scroll Zustand
     let scrollRafId = null;
@@ -46,6 +47,10 @@
             const container = document.getElementById(INJECT_BTN_ID);
             if (container) {
                 container.remove();
+                const afBtn = document.getElementById(AF_BTN_ID);
+                if (afBtn) afBtn.remove();
+                const lsBtn = document.getElementById(LS_BTN_ID);
+                if (lsBtn) lsBtn.remove();
                 injectFilterButtons();
             }
         }
@@ -292,7 +297,25 @@
 
     function updateFilterButtonsState() {
         const searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
-        const currentSearchVal = searchInput ? searchInput.value.trim() : '';
+        const searchBtn = document.querySelector('[data-tutorial-id="filter_by_search"]');
+        
+        // Prüfen, ob die Suche im Spiel aktiv markiert ist (weißer Button)
+        const isSearchActive = searchBtn ? (searchBtn.getAttribute('active') === 'true' || searchBtn.classList.contains('variant--normal')) : false;
+
+        let currentSearchVal = '';
+        if (searchInput) {
+            currentSearchVal = searchInput.value.trim();
+            if (currentSearchVal) {
+                lastActiveSearchPrefix = currentSearchVal;
+            } else {
+                lastActiveSearchPrefix = null;
+            }
+        } else if (!isSearchActive) {
+            // Wenn die Suche nicht mehr aktiv ist, Zustand zurücksetzen
+            lastActiveSearchPrefix = null;
+        }
+
+        const activePrefix = lastActiveSearchPrefix || '';
 
         // Präfixe aus LEA_CONFIG laden
         const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
@@ -318,7 +341,7 @@
         // 2. AF Button Zustand
         const afBtn = document.getElementById(AF_BTN_ID);
         if (afBtn) {
-            if (currentSearchVal.toUpperCase() === afPrefix.toUpperCase()) {
+            if (activePrefix.toUpperCase() === afPrefix.toUpperCase()) {
                 afBtn.classList.remove('variant--neutral');
                 afBtn.classList.add('variant--normal');
             } else {
@@ -330,7 +353,7 @@
         // 3. LS Button Zustand
         const lsBtn = document.getElementById(LS_BTN_ID);
         if (lsBtn) {
-            if (currentSearchVal.toUpperCase() === lsPrefix.toUpperCase()) {
+            if (activePrefix.toUpperCase() === lsPrefix.toUpperCase()) {
                 lsBtn.classList.remove('variant--neutral');
                 lsBtn.classList.add('variant--normal');
             } else {
@@ -366,25 +389,19 @@
             container.id = INJECT_BTN_ID;
             container.className = 'lea-filter-container';
 
-            // Haupt-Button-Element erstellen
+            // Haupt-Button-Element erstellen (quadratisch und spieleigene CSS-Klassen)
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.title = 'Custom Filter Menü öffnen';
-            btn.className = 'bb-base-button size--md theme--light lea-filter-btn';
+            btn.className = 'bb-base-button size--md shape--square theme--light lea-injected-btn';
 
             const inner = document.createElement('div');
-            inner.className = 'relative flex size-full items-center justify-center gap-1 lea-injected-btn-inner';
+            inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
             inner.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                 </svg>
             `;
-
-            // Pfeil-Icon hinzufügen für Dropdown-Indikator
-            const arrow = document.createElement('span');
-            arrow.textContent = ' ▼';
-            arrow.className = 'lea-dropdown-arrow';
-            inner.appendChild(arrow);
 
             btn.appendChild(inner);
             container.appendChild(btn);
@@ -443,6 +460,10 @@
                 if (activeFilters.paused) startAutoScroll(); else stopAutoScroll();
                 isDropdownOpen = false;
                 container.remove();
+                const afBtn = document.getElementById(AF_BTN_ID);
+                if (afBtn) afBtn.remove();
+                const lsBtn = document.getElementById(LS_BTN_ID);
+                if (lsBtn) lsBtn.remove();
                 injectFilterButtons();
             });
             dropdownContent.appendChild(itemStop);
@@ -457,6 +478,10 @@
                 if (activeFilters.fusion) startAutoScroll(); else stopAutoScroll();
                 isDropdownOpen = false;
                 container.remove();
+                const afBtn = document.getElementById(AF_BTN_ID);
+                if (afBtn) afBtn.remove();
+                const lsBtn = document.getElementById(LS_BTN_ID);
+                if (lsBtn) lsBtn.remove();
                 injectFilterButtons();
             });
             dropdownContent.appendChild(itemFusion);
@@ -470,6 +495,10 @@
                 isDropdownOpen = !isDropdownOpen;
                 // Container neu laden für frisches Styling
                 container.remove();
+                const afBtn = document.getElementById(AF_BTN_ID);
+                if (afBtn) afBtn.remove();
+                const lsBtn = document.getElementById(LS_BTN_ID);
+                if (lsBtn) lsBtn.remove();
                 injectFilterButtons();
             });
 
