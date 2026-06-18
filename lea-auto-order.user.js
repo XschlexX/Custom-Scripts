@@ -611,7 +611,7 @@
 
         injectAutoStartButton();
 
-        // Klick-Listener für präemptive Sperre bei Klick auf automatische Fahrzeugauswahl
+        // Klick-Listener für präemptive Sperre bei Klick auf automatische Fahrzeugauswahl (Capture-Phase)
         document.addEventListener('click', (e) => {
             if (isAutoRunning) return;
             const btn = e.target.closest(ASSISTANT_BTN_SELECTOR);
@@ -626,7 +626,7 @@
                     console.log('[LEF Safety Lock] Auto-Select geklickt. Buttons präemptiv gesperrt und Ladezustand aktiv.');
                 }
             }
-        });
+        }, true);
 
         // Passive Überprüfung der Lieferzeit für manuelles Spielen (performant via Intervall)
         setInterval(passiveCheckDeliveryTime, 200);
