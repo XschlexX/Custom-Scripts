@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.12
+// @version      1.0.13
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -450,3 +450,17 @@ function getBuildingName(card, prefix) {
     
     return card.textContent.trim().split('\n')[0].trim().substring(0, 35);
 }
+
+// Schaltet einen Suchfilter um: Wenn das Suchfeld bereits genau das Präfix enthält,
+// wird die Suche gelöscht. Andernfalls wird die Suche mit dem Präfix gestartet.
+async function toggleSearchFilter(prefix) {
+    const searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
+    const currentVal = searchInput ? searchInput.value.trim() : '';
+
+    if (currentVal.toUpperCase() === prefix.toUpperCase()) {
+        await clearSearch();
+    } else {
+        await triggerSearch(prefix);
+    }
+}
+

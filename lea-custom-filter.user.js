@@ -2,11 +2,12 @@
 // @name         LEA Custom Filter
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.2
+// @version      1.1.3
 // @match        https://game.logistics-empire.com/*
 // @description  Fügt einen Filter in der Gebäudeübersicht hinzu, um nur Gebäude mit gestoppter Produktionslinie anzuzeigen.
 // @run-at       document-idle
 // @grant        none
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.13
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-custom-filter.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-custom-filter.user.js
 // ==/UserScript==
@@ -17,8 +18,10 @@
     // -----------------------------------------------------------------------
     // SELEKTOREN & KONSTANTEN
     // -----------------------------------------------------------------------
-    const FILTER_BAR_SELECTOR = '.bb-filter-and-sort-bar';
+        const FILTER_BAR_SELECTOR = '.bb-filter-and-sort-bar';
     const INJECT_BTN_ID = 'lea-custom-stop-filter-btn';
+    const AF_BTN_ID = 'lea-filter-af-btn';
+    const LS_BTN_ID = 'lea-filter-ls-btn';
     const NEXT_BTN_ID = 'lea-custom-next-btn';
     const BUILDING_CARD_SELECTOR = '.building-card';
     const STOP_ICON_SELECTOR = 'img[src*="icon_blocked"]';
@@ -43,7 +46,7 @@
             const container = document.getElementById(INJECT_BTN_ID);
             if (container) {
                 container.remove();
-                injectFilterButton();
+                injectFilterButtons();
             }
         }
     });
@@ -255,17 +258,98 @@
     // -----------------------------------------------------------------------
     // UI: Filter-Button einfügen
     // -----------------------------------------------------------------------
-    function injectFilterButton() {
+    // -----------------------------------------------------------------------
+    // UI: Filter-Buttons erstellen und verwalten
+    // -----------------------------------------------------------------------
+
+    function createSearchFilterButton(id, prefix) {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.type = 'button';
+        
+        // Bereinigtes Label: z. B. "(AF)" -> "AF"
+        const label = prefix.replace(/[()]/g, '');
+        btn.title = `Suche nach ${prefix} filtern/zurücksetzen`;
+        btn.className = 'bb-base-button size--md shape--square theme--light lea-injected-btn';
+
+        const inner = document.createElement('div');
+        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
+        inner.textContent = label;
+        btn.appendChild(inner);
+
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (typeof toggleSearchFilter === 'function') {
+                await toggleSearchFilter(prefix);
+                updateFilterButtonsState();
+            } else {
+                console.error('[LEA Custom Filter] toggleSearchFilter nicht definiert!');
+            }
+        });
+
+        return btn;
+    }
+
+    function updateFilterButtonsState() {
+        const searchInput = document.querySelector('input[placeholder*="Suche"], input[placeholder*="Name"], .bb-filter-and-sort-bar input');
+        const currentSearchVal = searchInput ? searchInput.value.trim() : '';
+
+        // Präfixe aus LEA_CONFIG laden
+        const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
+        const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(LS)';
+
+        // 1. Custom Button Zustand
+        const customBtn = document.querySelector(`#${INJECT_BTN_ID} button`);
+        if (customBtn) {
+            const hasAnyFilterActive = Object.values(activeFilters).some(v => v);
+            const inner = customBtn.querySelector('.lea-injected-btn-inner');
+            
+            if (hasAnyFilterActive) {
+                customBtn.classList.remove('variant--neutral');
+                customBtn.classList.add('variant--normal', 'lea-filter-btn-active');
+                if (inner) inner.classList.add('lea-filter-btn-inner-active');
+            } else {
+                customBtn.classList.remove('variant--normal', 'lea-filter-btn-active');
+                customBtn.classList.add('variant--neutral');
+                if (inner) inner.classList.remove('lea-filter-btn-inner-active');
+            }
+        }
+
+        // 2. AF Button Zustand
+        const afBtn = document.getElementById(AF_BTN_ID);
+        if (afBtn) {
+            if (currentSearchVal.toUpperCase() === afPrefix.toUpperCase()) {
+                afBtn.classList.remove('variant--neutral');
+                afBtn.classList.add('variant--normal');
+            } else {
+                afBtn.classList.remove('variant--normal');
+                afBtn.classList.add('variant--neutral');
+            }
+        }
+
+        // 3. LS Button Zustand
+        const lsBtn = document.getElementById(LS_BTN_ID);
+        if (lsBtn) {
+            if (currentSearchVal.toUpperCase() === lsPrefix.toUpperCase()) {
+                lsBtn.classList.remove('variant--neutral');
+                lsBtn.classList.add('variant--normal');
+            } else {
+                lsBtn.classList.remove('variant--normal');
+                lsBtn.classList.add('variant--neutral');
+            }
+        }
+    }
+
+    function injectFilterButtons() {
         if (!isBuildingOverviewOpen()) {
             const existing = document.getElementById(INJECT_BTN_ID);
             if (existing) existing.remove();
+            const afBtn = document.getElementById(AF_BTN_ID);
+            if (afBtn) afBtn.remove();
+            const lsBtn = document.getElementById(LS_BTN_ID);
+            if (lsBtn) lsBtn.remove();
             const nextBtn = document.getElementById(NEXT_BTN_ID);
             if (nextBtn) nextBtn.remove();
-            return;
-        }
-
-        if (document.getElementById(INJECT_BTN_ID)) {
-            // Button ist bereits im DOM, kein Update nötig
             return;
         }
 
@@ -275,139 +359,149 @@
         // Container zu Flexbox machen, damit die Buttons nebeneinander liegen
         buildingTypeDiv.classList.add('lea-flex-row');
 
-        // Wrapper-Container für Button und Dropdown
-        const container = document.createElement('div');
-        container.id = INJECT_BTN_ID;
-        container.className = 'lea-filter-container';
+        // --- 1. Custom Button & Dropdown ---
+        if (!document.getElementById(INJECT_BTN_ID)) {
+            // Wrapper-Container für Button und Dropdown
+            const container = document.createElement('div');
+            container.id = INJECT_BTN_ID;
+            container.className = 'lea-filter-container';
 
-        // Haupt-Button-Element erstellen
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.title = 'Custom Filter Menü öffnen';
+            // Haupt-Button-Element erstellen
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = 'Custom Filter Menü öffnen';
+            btn.className = 'bb-base-button size--md theme--light lea-filter-btn';
 
-        // Basis-Styling und Klassen
-        btn.className = 'bb-base-button size--md theme--light lea-filter-btn';
-
-        const hasAnyFilterActive = Object.values(activeFilters).some(v => v);
-
-        if (hasAnyFilterActive) {
-            btn.classList.add('variant--normal', 'lea-filter-btn-active');
-        } else {
-            btn.classList.add('variant--neutral');
-        }
-
-        const inner = document.createElement('div');
-        inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        if (hasAnyFilterActive) {
-            inner.classList.add('lea-filter-btn-inner-active');
-        }
-
-        inner.textContent = 'Custom';
-
-        // Pfeil-Icon hinzufügen für Dropdown-Indikator
-        const arrow = document.createElement('span');
-        arrow.textContent = ' ▼';
-        arrow.className = 'lea-dropdown-arrow';
-        inner.appendChild(arrow);
-
-        btn.appendChild(inner);
-        container.appendChild(btn);
-
-        // Dropdown-Menü erstellen (mit Game-Styling)
-        const dropdown = document.createElement('div');
-        dropdown.style.display = isDropdownOpen ? 'block' : 'none';
-        dropdown.className = 'lea-filter-dropdown p-popover p-component bb-filter-popover rounded-lg border-1 border-content-box-outline bg-container-bg-b bg-(image:--background-gradient-card-info) shadow-(--shadow-generic)';
-
-        dropdown.addEventListener('click', (e) => {
-            e.stopPropagation(); // Verhindert Schließen beim Klick ins Menü
-        });
-
-        const dropdownContent = document.createElement('div');
-        dropdownContent.className = 'p-popover-content flex flex-col gap-md p-md lea-filter-dropdown-content';
-
-        // --- Hilfsfunktion für Filter-Items ---
-        function createFilterItem(id, labelText, emojiIcon, isActive, onClick) {
-            const item = document.createElement('div');
-            item.className = 'flex cursor-pointer items-center gap-1.5 select-none';
-
-            const toggleBgClass = isActive ? 'bg-toggle-bg-on border-toggle-outline-on' : 'bg-toggle-bg-off border-toggle-outline-off';
-            const toggleDotClass = isActive ? 'bg-toggle-on translate-x-[24px]' : 'bg-toggle-off translate-x-0';
-
-            item.innerHTML = `
-                <div class="size-9 shrink-0 flex items-center justify-center text-xl">${emojiIcon}</div>
-                <span class="text-p1-500 flex-1">${labelText}</span>
-                <div class="bg-content-box-bg relative h-[24px] w-[48px] rounded-full border transition duration-150 ease-in-out ${toggleBgClass}">
-                    <div class="absolute top-[2px] left-[2px] aspect-square h-[18px] rounded-full transition duration-150 ease-in-out ${toggleDotClass}"></div>
-                </div>
+            const inner = document.createElement('div');
+            inner.className = 'relative flex size-full items-center justify-center gap-1 lea-injected-btn-inner';
+            inner.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
             `;
 
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                onClick();
+            // Pfeil-Icon hinzufügen für Dropdown-Indikator
+            const arrow = document.createElement('span');
+            arrow.textContent = ' ▼';
+            arrow.className = 'lea-dropdown-arrow';
+            inner.appendChild(arrow);
+
+            btn.appendChild(inner);
+            container.appendChild(btn);
+
+            // Dropdown-Menü erstellen (mit Game-Styling)
+            const dropdown = document.createElement('div');
+            dropdown.style.display = isDropdownOpen ? 'block' : 'none';
+            dropdown.className = 'lea-filter-dropdown p-popover p-component bb-filter-popover rounded-lg border-1 border-content-box-outline bg-container-bg-b bg-(image:--background-gradient-card-info) shadow-(--shadow-generic)';
+
+            dropdown.addEventListener('click', (e) => {
+                e.stopPropagation(); // Verhindert Schließen beim Klick ins Menü
             });
 
-            return item;
+            const dropdownContent = document.createElement('div');
+            dropdownContent.className = 'p-popover-content flex flex-col gap-md p-md lea-filter-dropdown-content';
+
+            // --- Hilfsfunktion für Filter-Items ---
+            function createFilterItem(id, labelText, emojiIcon, isActive, onClick) {
+                const item = document.createElement('div');
+                item.className = 'flex cursor-pointer items-center gap-1.5 select-none';
+
+                const toggleBgClass = isActive ? 'bg-toggle-bg-on border-toggle-outline-on' : 'bg-toggle-bg-off border-toggle-outline-off';
+                const toggleDotClass = isActive ? 'bg-toggle-on translate-x-[24px]' : 'bg-toggle-off translate-x-0';
+
+                item.innerHTML = `
+                    <div class="size-9 shrink-0 flex items-center justify-center text-xl">${emojiIcon}</div>
+                    <span class="text-p1-500 flex-1">${labelText}</span>
+                    <div class="bg-content-box-bg relative h-[24px] w-[48px] rounded-full border transition duration-150 ease-in-out ${toggleBgClass}">
+                        <div class="absolute top-[2px] left-[2px] aspect-square h-[18px] rounded-full transition duration-150 ease-in-out ${toggleDotClass}"></div>
+                    </div>
+                `;
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onClick();
+                });
+
+                return item;
+            }
+
+            // --- Hilfsfunktion für Divider ---
+            function createDivider() {
+                const div = document.createElement('div');
+                div.className = 'w-full';
+                div.innerHTML = `
+                    <div class="h-[1px] w-full bg-linear-to-r from-transparent via-white to-transparent opacity-30"></div>
+                    <div class="h-[1px] w-full bg-linear-to-r from-transparent via-black to-transparent opacity-50"></div>
+                `;
+                return div;
+            }
+
+            // 1. Option: Produktion pausiert
+            const itemStop = createFilterItem('stop', 'Produktion pausiert', '🛑', activeFilters.paused, () => {
+                activeFilters.paused = !activeFilters.paused;
+                applyFilter();
+                if (activeFilters.paused) startAutoScroll(); else stopAutoScroll();
+                isDropdownOpen = false;
+                container.remove();
+                injectFilterButtons();
+            });
+            dropdownContent.appendChild(itemStop);
+
+            // Trennlinie
+            dropdownContent.appendChild(createDivider());
+
+            // 2. Option: Fusion im Gange
+            const itemFusion = createFilterItem('fusion', 'Fusion im Gange', '🔄', activeFilters.fusion, () => {
+                activeFilters.fusion = !activeFilters.fusion;
+                applyFilter();
+                if (activeFilters.fusion) startAutoScroll(); else stopAutoScroll();
+                isDropdownOpen = false;
+                container.remove();
+                injectFilterButtons();
+            });
+            dropdownContent.appendChild(itemFusion);
+
+            dropdown.appendChild(dropdownContent);
+            container.appendChild(dropdown);
+
+            // Klick-Logik für Hauptbutton (Menü auf/zu)
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                isDropdownOpen = !isDropdownOpen;
+                // Container neu laden für frisches Styling
+                container.remove();
+                injectFilterButtons();
+            });
+
+            // In das Div neben den anderen Button einfügen
+            buildingTypeDiv.appendChild(container);
         }
 
-        // --- Hilfsfunktion für Divider ---
-        function createDivider() {
-            const div = document.createElement('div');
-            div.className = 'w-full';
-            div.innerHTML = `
-                <div class="h-[1px] w-full bg-linear-to-r from-transparent via-white to-transparent opacity-30"></div>
-                <div class="h-[1px] w-full bg-linear-to-r from-transparent via-black to-transparent opacity-50"></div>
-            `;
-            return div;
+        // --- 2. AF Button ---
+        if (!document.getElementById(AF_BTN_ID)) {
+            const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
+            const afBtn = createSearchFilterButton(AF_BTN_ID, afPrefix);
+            buildingTypeDiv.appendChild(afBtn);
         }
 
-        // 1. Option: Produktion pausiert
-        const itemStop = createFilterItem('stop', 'Produktion pausiert', '🛑', activeFilters.paused, () => {
-            activeFilters.paused = !activeFilters.paused;
-            applyFilter();
-            if (activeFilters.paused) startAutoScroll(); else stopAutoScroll();
-            container.remove();
-            injectFilterButton();
-        });
-        dropdownContent.appendChild(itemStop);
+        // --- 3. LS Button ---
+        if (!document.getElementById(LS_BTN_ID)) {
+            const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(LS)';
+            const lsBtn = createSearchFilterButton(LS_BTN_ID, lsPrefix);
+            buildingTypeDiv.appendChild(lsBtn);
+        }
 
-        // Trennlinie
-        dropdownContent.appendChild(createDivider());
-
-        // 2. Option: Fusion im Gange
-        const itemFusion = createFilterItem('fusion', 'Fusion im Gange', '🔄', activeFilters.fusion, () => {
-            activeFilters.fusion = !activeFilters.fusion;
-            applyFilter();
-            if (activeFilters.fusion) startAutoScroll(); else stopAutoScroll();
-            container.remove();
-            injectFilterButton();
-        });
-        dropdownContent.appendChild(itemFusion);
-
-        dropdown.appendChild(dropdownContent);
-        container.appendChild(dropdown);
-
-        // Klick-Logik für Hauptbutton (Menü auf/zu)
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-
-            isDropdownOpen = !isDropdownOpen;
-
-            // Container neu laden für frisches Styling
-            container.remove();
-            injectFilterButton();
-        });
-
-        // In das Div neben den anderen Button einfügen
-        buildingTypeDiv.appendChild(container);
+        // Zustände aktualisieren
+        updateFilterButtonsState();
     }
 
     // -----------------------------------------------------------------------
     // INIT & OBSERVER
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Custom Filter] Initialisiert v1.0.2 (Next-Button)');
+        console.log('[LEA Custom Filter] Initialisiert v1.1.3 (Filter-Buttons)');
 
-        injectFilterButton();
+        injectFilterButtons();
         applyFilter();
 
         // MutationObserver fängt an, wenn sich das DOM ändert (z.B. durch Virtual Scrolling oder Menüwechsel)
@@ -416,7 +510,7 @@
             if (!isHandlingMutations) {
                 isHandlingMutations = true;
                 requestAnimationFrame(() => {
-                    injectFilterButton();
+                    injectFilterButtons();
                     // Wenn ein Filter aktiv ist, müssen wir ihn auf neu aufgetauchte Gebäude anwenden
                     if (Object.values(activeFilters).some(v => v)) {
                         applyFilter();
@@ -427,6 +521,15 @@
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
+
+        // Event-Listener für live Einstellungsänderungen
+        document.addEventListener('lea-settings-changed', () => {
+            const afBtn = document.getElementById(AF_BTN_ID);
+            if (afBtn) afBtn.remove();
+            const lsBtn = document.getElementById(LS_BTN_ID);
+            if (lsBtn) lsBtn.remove();
+            injectFilterButtons();
+        });
     }
 
     if (document.readyState === 'loading') {
