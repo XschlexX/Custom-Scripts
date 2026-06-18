@@ -2,12 +2,12 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.17
+// @version      1.1.18
 // @match        https://game.logistics-empire.com/*
 // @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.10
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.13
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-auto-order.user.js
 // ==/UserScript==
@@ -33,6 +33,11 @@
     let isAutoRunning = false;
     let stopRequested = false;
 
+    // Zustand für Sicherheits-Lock bei manueller Lieferzeitüberschreitung
+    let lastVehicleWindowKey = null;
+    let lockUntilTime = 0;
+    let hasLockedThisWindow = false;
+
     // =========================================================================
     // UI: WARN-POPUP (Passiv für manuelles Spielen)
     // =========================================================================
@@ -55,10 +60,38 @@
         }
     }
 
+    function getVehicleWindowKey() {
+        const header = document.querySelector('.bb-dialog .text-h2, .bottom-navigation .text-h2, h2, .text-h2');
+        const address = document.querySelector('.bb-dialog .text-p2-400, .bottom-navigation .text-p2-400, .text-p2-400');
+        
+        const headerText = header ? header.textContent.trim() : '';
+        const addressText = address ? address.textContent.trim() : '';
+        
+        return `${headerText}|${addressText}`;
+    }
+
+    function enableTransportButtons(enabled) {
+        const assistantBtn = document.querySelector(ASSISTANT_BTN_SELECTOR);
+        const nextStepBtn = document.querySelector(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR);
+
+        [assistantBtn, nextStepBtn].forEach(btn => {
+            if (btn) {
+                if (!enabled) {
+                    btn.disabled = true;
+                    btn.classList.add('lea-btn-disabled');
+                } else {
+                    btn.disabled = false;
+                    btn.classList.remove('lea-btn-disabled');
+                }
+            }
+        });
+    }
+
     function passiveCheckDeliveryTime() {
-        // Deaktiviere die Warnung, wenn das automatische Skript gerade arbeitet
+        // Deaktiviere die Warnung und entsperre Knöpfe, wenn das automatische Skript gerade arbeitet
         if (isAutoRunning) {
             showTimeWarning(false);
+            enableTransportButtons(true);
             return;
         }
 
@@ -67,13 +100,45 @@
 
         if (!isVehicleWindow) {
             showTimeWarning(false);
+            lastVehicleWindowKey = null;
+            hasLockedThisWindow = false;
+            lockUntilTime = 0;
+            enableTransportButtons(true);
             return;
+        }
+
+        // Window-Wechsel oder Erstöffnung erkennen
+        const currentWindowKey = getVehicleWindowKey();
+        if (currentWindowKey !== lastVehicleWindowKey) {
+            lastVehicleWindowKey = currentWindowKey;
+            hasLockedThisWindow = false;
+            lockUntilTime = 0;
+            enableTransportButtons(true);
         }
 
         const result = getDeliveryTimeSeconds();
         if (result && result.seconds > LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes * 60) {
-            showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString})`);
+            // Wenn wir diese Lieferzeitüberschreitung noch nicht gesperrt haben, starten wir den Timer
+            if (!hasLockedThisWindow) {
+                hasLockedThisWindow = true;
+                lockUntilTime = Date.now() + 2000; // 2 Sekunden Sperre
+                console.log(`[LEA Safety Lock] Lieferzeit zu hoch (${result.timeString}). Sperre Knöpfe für 2 Sekunden.`);
+            }
+
+            const remainingMs = lockUntilTime - Date.now();
+            if (remainingMs > 0) {
+                // Sperre aktiv
+                enableTransportButtons(false);
+                const remainingSecs = (remainingMs / 1000).toFixed(1);
+                showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString}) - Knöpfe gesperrt (${remainingSecs}s)`);
+            } else {
+                // Sperre abgelaufen
+                enableTransportButtons(true);
+                showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString})`);
+            }
         } else {
+            // Lieferzeit ist in Ordnung
+            enableTransportButtons(true);
             showTimeWarning(false);
         }
     }
@@ -511,7 +576,7 @@
         injectAutoStartButton();
 
         // Passive Überprüfung der Lieferzeit für manuelles Spielen (performant via Intervall)
-        setInterval(passiveCheckDeliveryTime, 500);
+        setInterval(passiveCheckDeliveryTime, 200);
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
