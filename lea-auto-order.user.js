@@ -36,6 +36,9 @@
     // Zustand für Sicherheits-Lock bei manueller Lieferzeitüberschreitung
     let lastVehicleWindowKey = null;
     let lockUntilTime = 0;
+    let preemptiveLockUntilTime = 0;
+    let autoSelectClickTime = 0;
+    let waitingForDeliveryTime = false;
     let hasLockedThisWindow = false;
 
     // =========================================================================
@@ -103,6 +106,8 @@
             lastVehicleWindowKey = null;
             hasLockedThisWindow = false;
             lockUntilTime = 0;
+            preemptiveLockUntilTime = 0;
+            waitingForDeliveryTime = false;
             enableTransportButtons(true);
             return;
         }
@@ -113,10 +118,41 @@
             lastVehicleWindowKey = currentWindowKey;
             hasLockedThisWindow = false;
             lockUntilTime = 0;
+            preemptiveLockUntilTime = 0;
+            waitingForDeliveryTime = false;
             enableTransportButtons(true);
         }
 
+        // 1. Präemptive Sperre & Warten auf Lieferzeit prüfen (Server-Lag Schutz)
+        const remainingPreemptiveMs = preemptiveLockUntilTime - Date.now();
         const result = getDeliveryTimeSeconds();
+
+        // Sicherheits-Fallback falls die Lieferzeit gar nicht lädt (max. 4 Sekunden)
+        if (waitingForDeliveryTime && Date.now() - autoSelectClickTime > 4000) {
+            console.warn('[LEF Safety Lock] Lieferzeit-Ladezeit überschritten (Fallback greift).');
+            waitingForDeliveryTime = false;
+            preemptiveLockUntilTime = 0;
+        }
+
+        // Wenn die 1 Sekunde Mindestsperre läuft ODER wir auf die Lieferzeit warten und diese noch fehlt
+        if (remainingPreemptiveMs > 0 || (waitingForDeliveryTime && !result)) {
+            enableTransportButtons(false);
+            if (!result) {
+                showTimeWarning(true, `Lieferzeit wird geladen...`);
+            } else {
+                const remainingSecs = (remainingPreemptiveMs / 1000).toFixed(1);
+                showTimeWarning(true, `Fahrzeuge werden gewählt... (${remainingSecs}s)`);
+            }
+            return;
+        }
+
+        // Sobald die Lieferzeit geladen ist, heben wir den Lade-Zustand auf
+        if (waitingForDeliveryTime && result) {
+            waitingForDeliveryTime = false;
+            preemptiveLockUntilTime = 0;
+        }
+
+        // 2. Reguläre Lieferzeit-Sperre prüfen
         if (result && result.seconds > LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes * 60) {
             // Wenn wir diese Lieferzeitüberschreitung noch nicht gesperrt haben, starten wir den Timer
             if (!hasLockedThisWindow) {
@@ -574,6 +610,23 @@
         if (oldAnfragenBtn) oldAnfragenBtn.remove();
 
         injectAutoStartButton();
+
+        // Klick-Listener für präemptive Sperre bei Klick auf automatische Fahrzeugauswahl
+        document.addEventListener('click', (e) => {
+            if (isAutoRunning) return;
+            const btn = e.target.closest(ASSISTANT_BTN_SELECTOR);
+            if (btn) {
+                const img = btn.querySelector('img');
+                const src = img ? img.getAttribute('src') || '' : '';
+                if (src.includes(IMG_AUTO_SELECT)) {
+                    preemptiveLockUntilTime = Date.now() + 1000;
+                    autoSelectClickTime = Date.now();
+                    waitingForDeliveryTime = true;
+                    enableTransportButtons(false);
+                    console.log('[LEF Safety Lock] Auto-Select geklickt. Buttons präemptiv gesperrt und Ladezustand aktiv.');
+                }
+            }
+        });
 
         // Passive Überprüfung der Lieferzeit für manuelles Spielen (performant via Intervall)
         setInterval(passiveCheckDeliveryTime, 200);
