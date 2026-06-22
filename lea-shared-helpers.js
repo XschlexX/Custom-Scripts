@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.13
+// @version      1.0.14
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -21,6 +21,7 @@ if (typeof window.LEA_CONFIG === 'undefined') {
         SETTINGS_BTN_SELECTOR: 'button[data-tutorial-id="factory-line-settings-button"]',
         BACK_BTN_SELECTOR: '.bottom-navigation button[show-divider]',
         DIALOG_SELECTOR: '.bb-dialog',
+        ARROW_BTN_SELECTOR: 'img[src*="to_quest_objective"], img[src*="tobuildingpage"]',
 
         // Assistenten-Buttons (Bilder zur Erkennung)
         IMG_AUTO_SELECT: 'auto_select',

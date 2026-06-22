@@ -2,7 +2,7 @@
 // @name         LEA Auto Storage Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.1
+// @version      1.0.2
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Befüllen von Zwischenlagern (Präfix (LS)) über das Auto Fill Goods Skript.
 // @run-at       document-idle
@@ -365,7 +365,7 @@
                 }
 
                 // 2. Lager betreten
-                const arrowBtn = next.card.querySelector('img[src*="to_quest_objective"]')?.closest('button');
+                const arrowBtn = next.card.querySelector(LEA_CONFIG.ARROW_BTN_SELECTOR)?.closest('button');
                 if (!arrowBtn) {
                     console.warn(`[LEA Storage Refill] Kein Pfeil-Button für Index ${next.index}. Überspringe...`);
                     stats.failed++;

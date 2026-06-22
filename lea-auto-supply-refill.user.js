@@ -2,7 +2,7 @@
 // @name         LEA Auto Supply Refill
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.23
+// @version      1.1.24
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisiert das Auffüllen von Rohstofflagern für Fabriken mit (AF) Präfix.
 // @run-at       document-idle
@@ -353,7 +353,7 @@
         console.log(`[LEA Supply Refill] Betrete Gebäude #${next.index}...`);
 
         // Pfeil-Button finden
-        const arrowBtn = next.card.querySelector('img[src*="to_quest_objective"]')?.closest('button');
+        const arrowBtn = next.card.querySelector(LEA_CONFIG.ARROW_BTN_SELECTOR)?.closest('button');
         if (!arrowBtn) {
             console.warn(`[LEA Supply Refill] Kein Pfeil-Button für Index ${next.index}. Überspringe...`);
             return 'failed';

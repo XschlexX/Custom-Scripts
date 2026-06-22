@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.7
+// @version      1.1.8
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -19,7 +19,6 @@
     // SELEKTOREN & KONSTANTEN
     // -----------------------------------------------------------------------
     const AVAILABLE_STATUS_SRC = 'improvement_status_available_mini'; // Gelbes Upgrade-verfuegbar-Icon
-    const ARROW_BTN_SRC = 'to_quest_objective';                // Blauer Pfeil rechts am Gebaeude
     const INJECT_BTN_ID = 'lea-upgrade-scan-btn';
 
     // UI Elemente im Gebäude
@@ -129,7 +128,7 @@
             // Name prüfen, ob das Gebäude übersprungen werden soll
             if (shouldSkipBuilding(card)) continue;
 
-            const arrowBtn = container.querySelector(`img[src*="${ARROW_BTN_SRC}"]`)?.closest('button');
+            const arrowBtn = container.querySelector(LEA_CONFIG.ARROW_BTN_SELECTOR)?.closest('button');
             if (arrowBtn && arrowBtn.offsetParent !== null) {
                 return arrowBtn;
             }
