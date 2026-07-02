@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.9
+// @version      1.1.10
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -182,6 +182,7 @@
                 remaining[good.imgSrc] -= amountToTake;
 
                 if (goodsImg) simulateClick(goodsImg);
+                inputContainer.blur(); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
                 await wait(50);
             }
         }
@@ -238,7 +239,15 @@
         for (const [src, rest] of Object.entries(remaining)) {
             if (rest > 0) console.warn(`[LEA Auto Fill] Noch ${rest} fehlend für "${src.split('/').pop().replace('.avif', '')}" – kein Lieferant mit ausreichend Bestand.`);
         }
-        if (!maxButtonClicked) console.warn(`[LEA Auto Fill] MAX-Button für "${maxGoodName}" nicht gefunden!`);
+        if (maxGood.missingAmount > 0 && !maxButtonClicked) {
+            console.warn(`[LEA Auto Fill] MAX-Button für "${maxGoodName}" nicht gefunden!`);
+        }
+
+        // Abschließender Blur auf das aktuell fokussierte Element, um sicherzustellen,
+        // dass alle Eingaben im Spiel registriert wurden.
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
 
         console.log("[LEA Auto Fill] Abgeschlossen.");
         document.dispatchEvent(new CustomEvent('lea-auto-fill-finished', { detail: { success: true } }));
@@ -295,7 +304,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.9');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.10');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
