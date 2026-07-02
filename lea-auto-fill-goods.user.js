@@ -75,7 +75,7 @@
             const imgSrc = imgEl.getAttribute('src');
             const flows = tile.querySelectorAll('number-flow-vue');
             const currentAmount = flows.length > 0 ? getNumberFromFlow(flows[0]) : 0;
-            const stockStr = tile.textContent || '';
+            const stockStr = flows.length > 0 ? getNumberFlowText(flows[0]) : '';
             goodsInfo.push({ imgSrc, currentAmount, stockStr, missingAmount: Math.max(0, targetPerType - currentAmount) });
         });
 
@@ -121,6 +121,37 @@
                 el = el.parentElement;
             }
             return null;
+        }
+
+        // Helper: Vollständigen Text eines number-flow-vue Elements (inkl. Suffix wie K/M) auslesen
+        function getNumberFlowText(element) {
+            if (!element) return '';
+            const shadowRoot = element.shadowRoot;
+            if (shadowRoot) {
+                const suffixEl = shadowRoot.querySelector('[part~="suffix"]');
+                const suffix = suffixEl ? suffixEl.textContent.trim() : '';
+
+                const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
+                let intStr = '';
+                intDigits.forEach(d => {
+                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                    if (m) intStr += m[1];
+                });
+
+                const fracDigits = shadowRoot.querySelectorAll('[part~="fraction-digit"]');
+                let fracStr = '';
+                fracDigits.forEach(d => {
+                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                    if (m) fracStr += m[1];
+                });
+
+                if (intStr) {
+                    return fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
+                }
+            }
+            const ariaLabel = element.getAttribute('aria-label');
+            if (ariaLabel) return ariaLabel;
+            return '';
         }
 
         // Helper: Entfernung für einen Lieferanten auslesen
@@ -243,11 +274,25 @@
 
                 if (goodsImg) simulateClick(goodsImg);
                 inputContainer.blur(); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
-                await wait(50);
+                await wait(150); // Dem Spiel Zeit geben, den Wert zu deckeln und zu formatieren
+
+                // Tatsächlich übernommenen Wert auslesen (kann geringer sein als amountToTake wegen Lieferanten-Bestand)
+                function parseInputAmount(str) {
+                    if (!str) return 0;
+                    const cleanStr = str.replace(/[.,\s]/g, '');
+                    const num = parseInt(cleanStr);
+                    return isNaN(num) ? 0 : num;
+                }
+                const actualTyped = parseInputAmount(inputContainer.textContent);
+                if (actualTyped > 0 && actualTyped !== amountToTake) {
+                    console.log(`  [LEA Auto Fill] Korrigiere: Eingetippt wurde ${amountToTake}, das Spiel hat es auf ${actualTyped} angepasst.`);
+                    const diff = amountToTake - actualTyped;
+                    remaining[good.imgSrc] += diff; // Differenz dem Bedarf wieder hinzufügen
+                }
             }
         }
 
-        await wait(100);
+        await wait(300); // Dem Spiel Zeit geben, die UI und Fortschrittsanzeige zu aktualisieren
 
         // Exakten freien Speicherplatz aus der Fortschrittsanzeige auslesen
         const freeImg = document.querySelector('img[src*="icon_storage_free"]');
