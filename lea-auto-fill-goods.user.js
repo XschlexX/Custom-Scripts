@@ -110,8 +110,48 @@
             return { rowEl, goodsImg };
         }
 
-        const allInputContainers = Array.from(document.querySelectorAll(INPUT_CONTAINER_SELECTOR));
-        console.log(`[LEA Auto Fill] ${allInputContainers.length} Lieferanten-Eingabefelder gefunden.`);
+        // Helper: Entfernung für einen Lieferanten auslesen
+        function getSupplierDistance(rowEl) {
+            if (!rowEl) return null;
+            const distanceEl = rowEl.querySelector('[data-tutorial-id="transport-source-distance"]');
+            if (!distanceEl) return null;
+
+            const text = distanceEl.textContent || '';
+            const match = text.match(/([\d.,]+)\s*km/i);
+            if (!match) return null;
+
+            let valStr = match[1];
+            if (valStr.includes(',')) {
+                valStr = valStr.replace(/\./g, '').replace(',', '.');
+            }
+            const num = parseFloat(valStr);
+            return isNaN(num) ? null : num;
+        }
+
+        // Filtere Lieferanten nach maximaler Entfernung
+        const maxDistance = LEA_CONFIG.settings.maxSupplierDistanceKm || 150;
+        console.log(`[LEA Auto Fill] Maximale Lieferanten-Entfernung: ${maxDistance} km`);
+
+        const validContainers = [];
+        let excludedCount = 0;
+
+        for (const inputContainer of document.querySelectorAll(INPUT_CONTAINER_SELECTOR)) {
+            const { rowEl } = findRowAndImg(inputContainer);
+            const distance = getSupplierDistance(rowEl);
+
+            if (distance === null || distance > maxDistance) {
+                excludedCount++;
+                continue;
+            }
+            validContainers.push(inputContainer);
+        }
+
+        if (excludedCount > 0) {
+            console.log(`[LEA Auto Fill] ${excludedCount} Lieferanten-Eingabefelder ignoriert (Entfernung > ${maxDistance} km oder nicht lesbar).`);
+        }
+
+        const allInputContainers = validContainers;
+        console.log(`[LEA Auto Fill] ${allInputContainers.length} gültige Lieferanten-Eingabefelder gefunden.`);
 
         // Zentrallager (ZL) priorisieren
         function isZLCenter(inputContainer) {

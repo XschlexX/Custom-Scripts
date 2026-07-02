@@ -2,12 +2,12 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.9
+// @version      1.0.10
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.10
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.15
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // ==/UserScript==
@@ -153,6 +153,19 @@
         list.appendChild(supplyTimeRow.row);
         inputs.maxSupplyDeliveryTimeMinutes = supplyTimeRow.input;
 
+        // Setting: Max. Lieferanten-Entfernung (km)
+        const maxDistanceRow = createSettingRow({
+            icon: '📍',
+            label: 'Max. Lieferanten-Entfernung (km)',
+            type: 'number',
+            value: LEA_CONFIG.settings.maxSupplierDistanceKm || 150,
+            min: 1,
+            max: 10000,
+            placeholder: '150'
+        });
+        list.appendChild(maxDistanceRow.row);
+        inputs.maxSupplierDistanceKm = maxDistanceRow.input;
+
         // Setting: Upgrade überspringen (Komma-getrennt)
         const excludeRow = createSettingRow({
             icon: '🚫',
@@ -253,7 +266,8 @@
             maxOrderDeliveryTimeMinutes: parseInt(inputs.maxOrderDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxOrderDeliveryTimeMinutes,
             maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes,
             excludeUpgradeNames: inputs.excludeUpgradeNames.value.trim(),
-            excludeOrderNames: inputs.excludeOrderNames.value.trim()
+            excludeOrderNames: inputs.excludeOrderNames.value.trim(),
+            maxSupplierDistanceKm: parseInt(inputs.maxSupplierDistanceKm.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplierDistanceKm
         };
 
         LEA_CONFIG.saveSettings(settings);
