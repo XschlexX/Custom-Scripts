@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.10
+// @version      1.1.11
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -363,7 +363,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.10');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.11');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
