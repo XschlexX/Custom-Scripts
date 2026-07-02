@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.17
+// @version      1.1.18
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -55,6 +55,22 @@
         const text = (inputContainer.textContent || '').trim();
         const cleanText = text.replace(/[.,\s]/g, '');
         return parseInt(cleanText) || 0;
+    }
+
+    // Helper: Blurt das Eingabefeld und das aktive Element, um Änderungen zu bestätigen (commit)
+    function blurInput(inputContainer) {
+        if (!inputContainer) return;
+        
+        const activeEl = document.activeElement;
+        if (activeEl && typeof activeEl.blur === 'function') {
+            activeEl.dispatchEvent(new Event('change', { bubbles: true }));
+            activeEl.dispatchEvent(new Event('blur', { bubbles: true }));
+            activeEl.blur();
+        }
+        
+        inputContainer.dispatchEvent(new Event('change', { bubbles: true }));
+        inputContainer.dispatchEvent(new Event('blur', { bubbles: true }));
+        inputContainer.blur();
     }
 
     async function handleAutoFill() {
@@ -275,7 +291,7 @@
                 remaining[good.imgSrc] -= amountToTake;
 
                 if (goodsImg) simulateClick(goodsImg);
-                inputContainer.blur(); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
+                blurInput(inputContainer); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
 
                 // Warte dynamisch, bis der Wert im DOM aktualisiert wurde (maximal 500ms)
                 let actualTyped = 0;
@@ -353,7 +369,7 @@
             if (difference > tolerance && supplierMax > maxGoodRemaining) {
                 console.log(`  ${maxGoodName}: Tippe ${maxGoodRemaining} ein (freier Platz ${freeSpace} > Bedarf ${maxGoodRemaining} [Diff ${difference} > Toleranz ${tolerance}]).`);
                 await simulateTyping(inputContainer, maxGoodRemaining);
-                inputContainer.blur();
+                blurInput(inputContainer); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
 
                 // Warte dynamisch auf das Update im DOM
                 let actualTyped = 0;
@@ -390,6 +406,7 @@
                     console.log(`  ${maxGoodName}: MAX-Button klicken. (Lagerplatz: ${freeSpace}, Lieferant: ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
                     simulateClick(maxBtn);
                     maxButtonClicked = true;
+                    blurInput(inputContainer); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
 
                     // Warte dynamisch auf das Update im DOM
                     let actualTyped = 0;
@@ -481,7 +498,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.17');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.18');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
