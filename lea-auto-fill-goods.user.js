@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.13
+// @version      1.1.15
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -274,7 +274,7 @@
                 plannedStock += good.currentAmount + typedAmount;
             }
         }
-        const freeSpace = Math.max(0, totalCapacity - plannedStock);
+        let freeSpace = Math.max(0, totalCapacity - plannedStock);
         console.log(`[LEA Auto Fill] Freier Lagerplatz (berechnet): ${freeSpace}`);
 
         // Toleranzwert für Rundungsfehler bestimmen (basierend auf der Größe der MAX-Ware)
@@ -415,7 +415,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.13');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.15');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {

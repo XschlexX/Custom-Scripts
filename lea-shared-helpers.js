@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.15
+// @version      1.0.16
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -224,11 +224,32 @@ function parseAmount(str) {
 function getNumberFromFlow(element) {
     if (!element) return 0;
 
-    // 1. aria-label
+    // 1. Prioritize Vue 3 properties / VNode props for the exact unrounded value
+    const vueKeys = ['__vueParentComponent', '__vnode'];
+    for (const key of vueKeys) {
+        if (element[key]) {
+            const vm = element[key];
+            const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value ?? vm?.props?.value;
+            if (val !== undefined && val !== null && !isNaN(Number(val))) {
+                return Math.abs(Math.round(Number(val)));
+            }
+        }
+    }
+
+    const otherKey = Object.keys(element).find(k => k.startsWith('__vue'));
+    if (otherKey) {
+        const vm = element[otherKey];
+        const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value;
+        if (val !== undefined && val !== null && !isNaN(Number(val))) {
+            return Math.abs(Math.round(Number(val)));
+        }
+    }
+
+    // 2. Fallback to aria-label
     const ariaLabel = element.getAttribute('aria-label');
     if (ariaLabel && ariaLabel.trim() !== '') return parseAmount(ariaLabel);
 
-    // 2. Shadow DOM
+    // 3. Fallback to Shadow DOM
     const shadowRoot = element.shadowRoot;
     if (shadowRoot) {
         const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
@@ -251,16 +272,6 @@ function getNumberFromFlow(element) {
 
             const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
             return parseAmount(numStr);
-        }
-    }
-
-    // 3. Vue 3 Fallback
-    const vueKey = Object.keys(element).find(k => k.startsWith('__vue'));
-    if (vueKey) {
-        const vm = element[vueKey];
-        const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value;
-        if (val !== undefined && val !== null && !isNaN(Number(val))) {
-            return Math.abs(Math.round(Number(val)));
         }
     }
 
