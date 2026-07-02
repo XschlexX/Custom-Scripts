@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.8
+// @version      1.1.9
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -78,10 +78,9 @@
             goodsInfo.push({ imgSrc, currentAmount, missingAmount: Math.max(0, targetPerType - currentAmount) });
         });
 
-        // Aufsteigend sortieren: wenigste zuerst → MAX-Ware ist der letzte Eintrag
-        goodsInfo.sort((a, b) => a.currentAmount - b.currentAmount);
-
-        const maxGood = goodsInfo[goodsInfo.length - 1]; // meiste Ware → MAX-Button
+        // Die Waren im Spiel sind bereits von links (meiste) nach rechts (wenigste) vorsortiert.
+        // Die MAX-Ware (meiste Ware) ist somit der erste Eintrag (ganz links).
+        const maxGood = goodsInfo[0]; 
         const maxGoodSrc = maxGood.imgSrc;
         const maxGoodName = maxGoodSrc.split('/').pop().replace('.avif', '');
 
@@ -145,35 +144,46 @@
         }
 
         // ── Phase 1: Fehlmengen eintippen (MAX-Ware komplett überspringen) ──
-        for (const inputContainer of allInputContainers) {
-            const { rowEl, goodsImg } = findRowAndImg(inputContainer);
-            if (!goodsImg) continue;
-            const imgSrc = goodsImg.getAttribute('src');
+        // Wir arbeiten die Waren von rechts (wenigste Ware) nach links (meiste Ware, ohne MAX-Ware) ab.
+        for (let i = goodsInfo.length - 1; i >= 1; i--) {
+            const good = goodsInfo[i];
+            if (good.imgSrc === maxGoodSrc) continue;
+            if (!remaining[good.imgSrc] || remaining[good.imgSrc] <= 0) continue;
 
-            if (imgSrc === maxGoodSrc) continue;       // MAX-Ware → erst in Phase 2
-            if (!(imgSrc in remaining)) continue;
-            if (remaining[imgSrc] <= 0) continue;
+            console.log(`[LEA Auto Fill] Befülle Sorte: ${good.imgSrc.split('/').pop().replace('.avif', '')} (fehlt: ${remaining[good.imgSrc]})`);
 
-            // Lieferant-Bestand: LETZTER non-input flow = aktueller Lagerbestand des Lieferanten.
-            // Die Kachel zeigt [Bereits angefordert (meist 0) / Gesamtbestand]. Der letzte non-input flow ist der Bestand.
-            const supplierFlows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue'))
-                .filter(f => !inputContainer.contains(f)) : [];
-            let supplierMax = 0;
-            if (supplierFlows.length > 0) {
-                const targetFlow = supplierFlows[supplierFlows.length - 1];
-                supplierMax = getNumberFromFlow(targetFlow);
+            const matchingContainers = allInputContainers.filter(inputContainer => {
+                const { goodsImg } = findRowAndImg(inputContainer);
+                return goodsImg && goodsImg.getAttribute('src') === good.imgSrc;
+            });
+
+            for (const inputContainer of matchingContainers) {
+                if (remaining[good.imgSrc] <= 0) break;
+
+                const { rowEl, goodsImg } = findRowAndImg(inputContainer);
+                if (!goodsImg) continue;
+
+                // Lieferant-Bestand: LETZTER non-input flow = aktueller Lagerbestand des Lieferanten.
+                // Die Kachel zeigt [Bereits angefordert (meist 0) / Gesamtbestand]. Der letzte non-input flow ist der Bestand.
+                const supplierFlows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue'))
+                    .filter(f => !inputContainer.contains(f)) : [];
+                let supplierMax = 0;
+                if (supplierFlows.length > 0) {
+                    const targetFlow = supplierFlows[supplierFlows.length - 1];
+                    supplierMax = getNumberFromFlow(targetFlow);
+                }
+                if (supplierMax <= 0) continue; // Lieferant hat nichts auf Lager
+
+                const amountToTake = Math.min(remaining[good.imgSrc], supplierMax);
+                const name = good.imgSrc.split('/').pop().replace('.avif', '');
+                console.log(`  ${name}: nehme ${amountToTake} (Lieferant Bestand: ${supplierMax})`);
+
+                await simulateTyping(inputContainer, amountToTake);
+                remaining[good.imgSrc] -= amountToTake;
+
+                if (goodsImg) simulateClick(goodsImg);
+                await wait(50);
             }
-            if (supplierMax <= 0) continue; // Lieferant hat nichts auf Lager
-
-            const amountToTake = Math.min(remaining[imgSrc], supplierMax);
-            const name = imgSrc.split('/').pop().replace('.avif', '');
-            console.log(`  ${name}: nehme ${amountToTake} (Lieferant Bestand: ${supplierMax})`);
-
-            await simulateTyping(inputContainer, amountToTake);
-            remaining[imgSrc] -= amountToTake;
-
-            if (goodsImg) simulateClick(goodsImg);
-            await wait(50);
         }
 
         await wait(100);
@@ -285,7 +295,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.0.3');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.9');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
