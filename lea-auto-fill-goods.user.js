@@ -247,9 +247,13 @@
                 await wait(150); // Dem Spiel Zeit geben, den Wert zu deckeln und zu formatieren
 
                 // Tatsächlich übernommenen Wert auslesen (kann geringer sein als amountToTake wegen Lieferanten-Bestand)
-                // Tatsächlich übernommenen Wert auslesen (kann geringer sein als amountToTake wegen Lieferanten-Bestand)
                 const flowEl = inputContainer.querySelector('number-flow-vue');
-                const actualTyped = flowEl ? getNumberFromFlow(flowEl) : 0;
+                let actualTyped = flowEl ? getNumberFromFlow(flowEl) : 0;
+                if (actualTyped <= 0) {
+                    const text = (inputContainer.textContent || '').trim();
+                    const cleanText = text.replace(/[.,\s]/g, '');
+                    actualTyped = parseInt(cleanText) || 0;
+                }
                 if (actualTyped > 0 && actualTyped !== amountToTake) {
                     console.log(`  [LEA Auto Fill] Korrigiere: Eingetippt wurde ${amountToTake}, das Spiel hat es auf ${actualTyped} angepasst.`);
                     const diff = amountToTake - actualTyped;
@@ -258,31 +262,20 @@
             }
         }
 
-        await wait(300); // Dem Spiel Zeit geben, die UI und Fortschrittsanzeige zu aktualisieren
+        await wait(200); // Kurze Atempause für DOM/Reaktivität
 
-        // Exakten freien Speicherplatz aus der Fortschrittsanzeige auslesen
-        const freeImg = document.querySelector('img[src*="icon_storage_free"]');
-        let freeSpace = null;
-        if (freeImg && freeImg.parentElement) {
-            freeSpace = parseAmount(freeImg.parentElement.textContent);
-        }
-
-        // Fallback: berechneter freier Lagerplatz
-        if (freeSpace === null) {
-            let plannedStock = 0;
-            for (const good of goodsInfo) {
-                if (good.imgSrc === maxGoodSrc) {
-                    plannedStock += good.currentAmount;
-                } else {
-                    const typedAmount = good.missingAmount - (remaining[good.imgSrc] || 0);
-                    plannedStock += good.currentAmount + typedAmount;
-                }
+        // Freien Speicherplatz berechnen (mathematisch exakt und absolut unabhängig von UI-Verzögerungen)
+        let plannedStock = 0;
+        for (const good of goodsInfo) {
+            if (good.imgSrc === maxGoodSrc) {
+                plannedStock += good.currentAmount;
+            } else {
+                const typedAmount = good.missingAmount - (remaining[good.imgSrc] || 0);
+                plannedStock += good.currentAmount + typedAmount;
             }
-            freeSpace = Math.max(0, totalCapacity - plannedStock);
-            console.log(`[LEA Auto Fill] Freier Lagerplatz (berechnet): ${freeSpace}`);
-        } else {
-            console.log(`[LEA Auto Fill] Freier Lagerplatz (aus UI): ${freeSpace}`);
         }
+        const freeSpace = Math.max(0, totalCapacity - plannedStock);
+        console.log(`[LEA Auto Fill] Freier Lagerplatz (berechnet): ${freeSpace}`);
 
         // Toleranzwert für Rundungsfehler bestimmen (basierend auf der Größe der MAX-Ware)
         function getRoundingTolerance(amount) {
