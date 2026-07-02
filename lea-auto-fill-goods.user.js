@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.11
+// @version      1.1.12
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -75,7 +75,8 @@
             const imgSrc = imgEl.getAttribute('src');
             const flows = tile.querySelectorAll('number-flow-vue');
             const currentAmount = flows.length > 0 ? getNumberFromFlow(flows[0]) : 0;
-            goodsInfo.push({ imgSrc, currentAmount, missingAmount: Math.max(0, targetPerType - currentAmount) });
+            const stockStr = tile.textContent || '';
+            goodsInfo.push({ imgSrc, currentAmount, stockStr, missingAmount: Math.max(0, targetPerType - currentAmount) });
         });
 
         // Die Waren im Spiel sind bereits von links (meiste) nach rechts (wenigste) vorsortiert.
@@ -248,6 +249,41 @@
 
         await wait(100);
 
+        // Exakten freien Speicherplatz aus der Fortschrittsanzeige auslesen
+        const freeImg = document.querySelector('img[src*="icon_storage_free"]');
+        let freeSpace = null;
+        if (freeImg && freeImg.parentElement) {
+            freeSpace = parseAmount(freeImg.parentElement.textContent);
+        }
+
+        // Fallback: berechneter freier Lagerplatz
+        if (freeSpace === null) {
+            let plannedStock = 0;
+            for (const good of goodsInfo) {
+                if (good.imgSrc === maxGoodSrc) {
+                    plannedStock += good.currentAmount;
+                } else {
+                    const typedAmount = good.missingAmount - (remaining[good.imgSrc] || 0);
+                    plannedStock += good.currentAmount + typedAmount;
+                }
+            }
+            freeSpace = Math.max(0, totalCapacity - plannedStock);
+            console.log(`[LEA Auto Fill] Freier Lagerplatz (berechnet): ${freeSpace}`);
+        } else {
+            console.log(`[LEA Auto Fill] Freier Lagerplatz (aus UI): ${freeSpace}`);
+        }
+
+        // Toleranzwert für Rundungsfehler bestimmen (basierend auf K/M-Abkürzung der MAX-Ware)
+        function getRoundingTolerance(stockStr) {
+            if (!stockStr) return 0;
+            const s = stockStr.toUpperCase();
+            if (s.includes('M')) return 150000;
+            if (s.includes('K')) return 150;
+            return 5;
+        }
+        const tolerance = getRoundingTolerance(maxGood.stockStr);
+        console.log(`[LEA Auto Fill] Rundungstoleranz für MAX-Ware: ${tolerance} (Anzeige: "${maxGood.stockStr.trim()}")`);
+
         // ── Phase 2: MAX-Ware befüllen ──
         // Erst das Eingabefeld der MAX-Ware fokussieren – das committet den zuletzt
         // getippten Wert (black_potato) über den blur-Event, genau wie ein manueller Klick.
@@ -262,35 +298,49 @@
             if (!goodsImg) continue;
             if (goodsImg.getAttribute('src') !== maxGoodSrc) continue;
 
-            // Schritt 1: Eingabefeld der MAX-Ware fokussieren → committed vorherige Werte
-            inputContainer.focus();
-            await wait(100);
-
-            // Schritt 2: MAX-Button klicken
-            // Primär: direkt im parentElement suchen (DOM-Analyse: depth=1)
-            const parent = inputContainer.parentElement;
-            let maxBtn = parent ? Array.from(parent.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX') : null;
-            // Fallback: rowEl durchsuchen (falls DOM-Struktur variiert)
-            if (!maxBtn && rowEl) {
-                maxBtn = Array.from(rowEl.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX');
+            // Lieferanten-Bestand für Logging, Loop-Counter und Weichenentscheidung
+            const supplierFlows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue'))
+                .filter(f => !inputContainer.contains(f)) : [];
+            let supplierMax = 0;
+            if (supplierFlows.length > 0) {
+                const targetFlow = supplierFlows[supplierFlows.length - 1];
+                supplierMax = getNumberFromFlow(targetFlow);
             }
+            if (supplierMax <= 0) continue; // Lieferant hat nichts auf Lager
 
-            if (maxBtn) {
-                // Lieferanten-Bestand für Logging und Loop-Counter
-                const supplierFlows = rowEl ? Array.from(rowEl.querySelectorAll('number-flow-vue'))
-                    .filter(f => !inputContainer.contains(f)) : [];
-                let supplierMax = 0;
-                if (supplierFlows.length > 0) {
-                    const targetFlow = supplierFlows[supplierFlows.length - 1];
-                    supplierMax = getNumberFromFlow(targetFlow);
-                }
-                console.log(`  ${maxGoodName}: MAX-Button klicken. (Lieferant Bestand: ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
-                simulateClick(maxBtn);
-                maxButtonClicked = true;
-                maxGoodRemaining -= supplierMax || 1; // Fallback: mind. 1 abziehen damit Loop endet
+            // Differenz berechnen zwischen freiem Lagerplatz und berechnetem Bedarf
+            const difference = freeSpace - maxGoodRemaining;
+
+            // Fall A: Genügend freier Platz im Lager und beim Lieferanten vorhanden (echter freier Platz)
+            if (difference > tolerance && supplierMax > maxGoodRemaining) {
+                console.log(`  ${maxGoodName}: Tippe ${maxGoodRemaining} ein (freier Platz ${freeSpace} > Bedarf ${maxGoodRemaining} [Diff ${difference} > Toleranz ${tolerance}]).`);
+                await simulateTyping(inputContainer, maxGoodRemaining);
+                inputContainer.blur();
+                maxGoodRemaining = 0; // Bedarf vollständig gedeckt
                 await wait(200);
             } else {
-                console.warn(`[LEA Auto Fill] MAX-Button für Lieferant nicht gefunden (rowEl-Klassen: ${rowEl?.className?.slice(0, 60)})`);
+                // Fall B: Lagerplatz ist der limitierende Faktor (Ausgleich des Rundungsfehlers) -> Klick auf MAX
+                // Schritt 1: Eingabefeld fokussieren
+                inputContainer.focus();
+                await wait(100);
+
+                // Schritt 2: MAX-Button suchen
+                const parent = inputContainer.parentElement;
+                let maxBtn = parent ? Array.from(parent.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX') : null;
+                if (!maxBtn && rowEl) {
+                    maxBtn = Array.from(rowEl.querySelectorAll('button')).find(b => b.textContent.trim() === 'MAX');
+                }
+
+                if (maxBtn) {
+                    console.log(`  ${maxGoodName}: MAX-Button klicken. (Lagerplatz: ${freeSpace}, Lieferant: ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
+                    simulateClick(maxBtn);
+                    maxButtonClicked = true;
+                    maxGoodRemaining -= supplierMax || 1;
+                    freeSpace -= supplierMax || 1;
+                    await wait(200);
+                } else {
+                    console.warn(`[LEA Auto Fill] MAX-Button für Lieferant nicht gefunden (rowEl-Klassen: ${rowEl?.className?.slice(0, 60)})`);
+                }
             }
         }
 
@@ -363,7 +413,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.11');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.12');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
