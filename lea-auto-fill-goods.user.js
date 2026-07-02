@@ -110,10 +110,22 @@
             return { rowEl, goodsImg };
         }
 
+        // Helper: Übergeordnetes Lieferanten-Kachel-Element finden
+        function findSupplierCard(inputContainer) {
+            let el = inputContainer.parentElement;
+            while (el && el !== document.body) {
+                if (el.querySelector('[data-tutorial-id="transport-source-distance"]')) {
+                    return el;
+                }
+                el = el.parentElement;
+            }
+            return null;
+        }
+
         // Helper: Entfernung für einen Lieferanten auslesen
-        function getSupplierDistance(rowEl) {
-            if (!rowEl) return null;
-            const distanceEl = rowEl.querySelector('[data-tutorial-id="transport-source-distance"]');
+        function getSupplierDistance(supplierCard) {
+            if (!supplierCard) return null;
+            const distanceEl = supplierCard.querySelector('[data-tutorial-id="transport-source-distance"]');
             if (!distanceEl) return null;
 
             const text = distanceEl.textContent || '';
@@ -136,10 +148,17 @@
         let excludedCount = 0;
 
         for (const inputContainer of document.querySelectorAll(INPUT_CONTAINER_SELECTOR)) {
-            const { rowEl } = findRowAndImg(inputContainer);
-            const distance = getSupplierDistance(rowEl);
+            const supplierCard = findSupplierCard(inputContainer);
+            const distance = getSupplierDistance(supplierCard);
+            const name = supplierCard ? (supplierCard.textContent || '').trim().split('\n')[0].trim().substring(0, 45) : 'Unbekannter Lieferant';
 
-            if (distance === null || distance > maxDistance) {
+            if (distance === null) {
+                console.log(`[LEA Auto Fill] Ignoriere Feld bei "${name}" (Entfernung konnte nicht ausgelesen werden).`);
+                excludedCount++;
+                continue;
+            }
+            if (distance > maxDistance) {
+                console.log(`[LEA Auto Fill] Ignoriere Feld bei "${name}" (${distance} km > ${maxDistance} km).`);
                 excludedCount++;
                 continue;
             }
@@ -147,7 +166,7 @@
         }
 
         if (excludedCount > 0) {
-            console.log(`[LEA Auto Fill] ${excludedCount} Lieferanten-Eingabefelder ignoriert (Entfernung > ${maxDistance} km oder nicht lesbar).`);
+            console.log(`[LEA Auto Fill] Insgesamt ${excludedCount} Lieferanten-Eingabefelder gefiltert.`);
         }
 
         const allInputContainers = validContainers;
