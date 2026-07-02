@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.12
+// @version      1.1.13
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -75,8 +75,7 @@
             const imgSrc = imgEl.getAttribute('src');
             const flows = tile.querySelectorAll('number-flow-vue');
             const currentAmount = flows.length > 0 ? getNumberFromFlow(flows[0]) : 0;
-            const stockStr = flows.length > 0 ? getNumberFlowText(flows[0]) : '';
-            goodsInfo.push({ imgSrc, currentAmount, stockStr, missingAmount: Math.max(0, targetPerType - currentAmount) });
+            goodsInfo.push({ imgSrc, currentAmount, missingAmount: Math.max(0, targetPerType - currentAmount) });
         });
 
         // Die Waren im Spiel sind bereits von links (meiste) nach rechts (wenigste) vorsortiert.
@@ -123,36 +122,7 @@
             return null;
         }
 
-        // Helper: Vollständigen Text eines number-flow-vue Elements (inkl. Suffix wie K/M) auslesen
-        function getNumberFlowText(element) {
-            if (!element) return '';
-            const shadowRoot = element.shadowRoot;
-            if (shadowRoot) {
-                const suffixEl = shadowRoot.querySelector('[part~="suffix"]');
-                const suffix = suffixEl ? suffixEl.textContent.trim() : '';
 
-                const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
-                let intStr = '';
-                intDigits.forEach(d => {
-                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
-                    if (m) intStr += m[1];
-                });
-
-                const fracDigits = shadowRoot.querySelectorAll('[part~="fraction-digit"]');
-                let fracStr = '';
-                fracDigits.forEach(d => {
-                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
-                    if (m) fracStr += m[1];
-                });
-
-                if (intStr) {
-                    return fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
-                }
-            }
-            const ariaLabel = element.getAttribute('aria-label');
-            if (ariaLabel) return ariaLabel;
-            return '';
-        }
 
         // Helper: Entfernung für einen Lieferanten auslesen
         function getSupplierDistance(supplierCard) {
@@ -277,13 +247,9 @@
                 await wait(150); // Dem Spiel Zeit geben, den Wert zu deckeln und zu formatieren
 
                 // Tatsächlich übernommenen Wert auslesen (kann geringer sein als amountToTake wegen Lieferanten-Bestand)
-                function parseInputAmount(str) {
-                    if (!str) return 0;
-                    const cleanStr = str.replace(/[.,\s]/g, '');
-                    const num = parseInt(cleanStr);
-                    return isNaN(num) ? 0 : num;
-                }
-                const actualTyped = parseInputAmount(inputContainer.textContent);
+                // Tatsächlich übernommenen Wert auslesen (kann geringer sein als amountToTake wegen Lieferanten-Bestand)
+                const flowEl = inputContainer.querySelector('number-flow-vue');
+                const actualTyped = flowEl ? getNumberFromFlow(flowEl) : 0;
                 if (actualTyped > 0 && actualTyped !== amountToTake) {
                     console.log(`  [LEA Auto Fill] Korrigiere: Eingetippt wurde ${amountToTake}, das Spiel hat es auf ${actualTyped} angepasst.`);
                     const diff = amountToTake - actualTyped;
@@ -318,16 +284,14 @@
             console.log(`[LEA Auto Fill] Freier Lagerplatz (aus UI): ${freeSpace}`);
         }
 
-        // Toleranzwert für Rundungsfehler bestimmen (basierend auf K/M-Abkürzung der MAX-Ware)
-        function getRoundingTolerance(stockStr) {
-            if (!stockStr) return 0;
-            const s = stockStr.toUpperCase();
-            if (s.includes('M')) return 150000;
-            if (s.includes('K')) return 150;
-            return 5;
+        // Toleranzwert für Rundungsfehler bestimmen (basierend auf der Größe der MAX-Ware)
+        function getRoundingTolerance(amount) {
+            if (amount >= 1000000) return 150000; // Millionen-Bereich (M)
+            if (amount >= 1000) return 150;      // Tausender-Bereich (K)
+            return 5;                            // Exakter Bereich
         }
-        const tolerance = getRoundingTolerance(maxGood.stockStr);
-        console.log(`[LEA Auto Fill] Rundungstoleranz für MAX-Ware: ${tolerance} (Anzeige: "${maxGood.stockStr.trim()}")`);
+        const tolerance = getRoundingTolerance(maxGood.currentAmount);
+        console.log(`[LEA Auto Fill] Rundungstoleranz für MAX-Ware: ${tolerance} (Menge: ${maxGood.currentAmount})`);
 
         // ── Phase 2: MAX-Ware befüllen ──
         // Erst das Eingabefeld der MAX-Ware fokussieren – das committet den zuletzt
@@ -458,7 +422,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.12');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.13');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {

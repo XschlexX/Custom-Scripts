@@ -66,6 +66,7 @@ Dieses Dokument fasst alle zentralen Regeln, Design-Richtlinien und technischen 
 *   **Versionierung bei lokalen Änderungen & Git-Push-Status:**
     *   **Regel:** Wenn Code-Änderungen an einer Datei vorgenommen werden, die bereits auf GitHub gepusht wurde (d. h. lokaler Stand entspricht dem Remote-Stand), muss die `@version` im Metadaten-Header erhöht werden.
     *   **Ausnahme:** Wenn eine Datei lokal modifiziert wurde, die `@version` bereits erhöht wurde, die Änderungen aber noch **nicht** auf GitHub gepusht wurden (unpushed commits oder uncommitted changes), darf die `@version` bei weiteren Bearbeitungen dieser Datei **nicht** erneut erhöht werden. Sie bleibt unverändert, bis die Version gepusht wurde.
+    *   **KI-Prüfpflicht:** Die KI muss vor jeder Änderung der Skript-Version explizit prüfen (via `git fetch` und Überprüfung der Remote-Version auf GitHub), ob die aktuelle Version bereits auf GitHub existiert, um Fehler bei der Versionsbestimmung zu vermeiden.
 *   **Userscript-Metadaten:**
     *   Alle Skripte müssen standardisierte `@updateURL` und `@downloadURL` im Header besitzen, die auf die Raw-Version des GitHub-Repositories verweisen:
         ```javascript
