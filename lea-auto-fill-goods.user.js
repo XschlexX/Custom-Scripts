@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.15
+// @version      1.1.17
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -24,6 +24,38 @@
     // =========================================================================
     // HAUPT-LOGIK
     // =========================================================================
+
+    // Helper: Liest den aktuell im Eingabefeld angezeigten Wert aus (über Shadow DOM oder Fallback)
+    function getTypedValue(inputContainer) {
+        if (!inputContainer) return 0;
+        
+        const flowEl = inputContainer.querySelector('number-flow-vue');
+        if (flowEl && flowEl.shadowRoot) {
+            const intDigits = flowEl.shadowRoot.querySelectorAll('[part~="integer-digit"]');
+            let intStr = '';
+            intDigits.forEach(d => {
+                const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                if (m) intStr += m[1];
+            });
+            if (intStr) {
+                const fracDigits = flowEl.shadowRoot.querySelectorAll('[part~="fraction-digit"]');
+                let fracStr = '';
+                fracDigits.forEach(d => {
+                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                    if (m) fracStr += m[1];
+                });
+                const suffixEl = flowEl.shadowRoot.querySelector('[part~="suffix"]');
+                const suffix = suffixEl ? suffixEl.textContent.trim() : '';
+                const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
+                return parseAmount(numStr);
+            }
+        }
+        
+        // Fallback: Textinhalt direkt bereinigen
+        const text = (inputContainer.textContent || '').trim();
+        const cleanText = text.replace(/[.,\s]/g, '');
+        return parseInt(cleanText) || 0;
+    }
 
     async function handleAutoFill() {
         console.log("[LEA Auto Fill] Start...");
@@ -244,16 +276,20 @@
 
                 if (goodsImg) simulateClick(goodsImg);
                 inputContainer.blur(); // Fokussierung aufheben, um den Wert im Spiel zu registrieren (commit)
-                await wait(150); // Dem Spiel Zeit geben, den Wert zu deckeln und zu formatieren
 
-                // Tatsächlich übernommenen Wert auslesen (kann geringer sein als amountToTake wegen Lieferanten-Bestand)
-                const flowEl = inputContainer.querySelector('number-flow-vue');
-                let actualTyped = flowEl ? getNumberFromFlow(flowEl) : 0;
-                if (actualTyped <= 0) {
-                    const text = (inputContainer.textContent || '').trim();
-                    const cleanText = text.replace(/[.,\s]/g, '');
-                    actualTyped = parseInt(cleanText) || 0;
+                // Warte dynamisch, bis der Wert im DOM aktualisiert wurde (maximal 500ms)
+                let actualTyped = 0;
+                const startTime = Date.now();
+                while (Date.now() - startTime < 500) {
+                    actualTyped = getTypedValue(inputContainer);
+
+                    // Wenn der eingetippte Wert erreicht wurde oder sich auf einen plausiblen Wert geändert hat
+                    if (actualTyped === amountToTake || (actualTyped > 0 && actualTyped < amountToTake)) {
+                        break;
+                    }
+                    await wait(30);
                 }
+
                 if (actualTyped > 0 && actualTyped !== amountToTake) {
                     console.log(`  [LEA Auto Fill] Korrigiere: Eingetippt wurde ${amountToTake}, das Spiel hat es auf ${actualTyped} angepasst.`);
                     const diff = amountToTake - actualTyped;
@@ -318,8 +354,25 @@
                 console.log(`  ${maxGoodName}: Tippe ${maxGoodRemaining} ein (freier Platz ${freeSpace} > Bedarf ${maxGoodRemaining} [Diff ${difference} > Toleranz ${tolerance}]).`);
                 await simulateTyping(inputContainer, maxGoodRemaining);
                 inputContainer.blur();
-                maxGoodRemaining = 0; // Bedarf vollständig gedeckt
-                await wait(200);
+
+                // Warte dynamisch auf das Update im DOM
+                let actualTyped = 0;
+                const startTime = Date.now();
+                while (Date.now() - startTime < 500) {
+                    actualTyped = getTypedValue(inputContainer);
+                    if (actualTyped === maxGoodRemaining || (actualTyped > 0 && actualTyped < maxGoodRemaining)) {
+                        break;
+                    }
+                    await wait(30);
+                }
+
+                if (actualTyped > 0) {
+                    maxGoodRemaining -= actualTyped;
+                    freeSpace -= actualTyped;
+                } else {
+                    maxGoodRemaining = 0; // Fallback
+                }
+                await wait(100);
             } else {
                 // Fall B: Lagerplatz ist der limitierende Faktor (Ausgleich des Rundungsfehlers) -> Klick auf MAX
                 // Schritt 1: Eingabefeld fokussieren
@@ -337,9 +390,22 @@
                     console.log(`  ${maxGoodName}: MAX-Button klicken. (Lagerplatz: ${freeSpace}, Lieferant: ${supplierMax}, noch benötigt: ${maxGoodRemaining})`);
                     simulateClick(maxBtn);
                     maxButtonClicked = true;
-                    maxGoodRemaining -= supplierMax || 1;
-                    freeSpace -= supplierMax || 1;
-                    await wait(200);
+
+                    // Warte dynamisch auf das Update im DOM
+                    let actualTyped = 0;
+                    const startTime = Date.now();
+                    while (Date.now() - startTime < 500) {
+                        actualTyped = getTypedValue(inputContainer);
+                        if (actualTyped > 0) {
+                            break;
+                        }
+                        await wait(30);
+                    }
+
+                    const amountDeducted = actualTyped > 0 ? actualTyped : (supplierMax || 1);
+                    maxGoodRemaining -= amountDeducted;
+                    freeSpace -= amountDeducted;
+                    await wait(100);
                 } else {
                     console.warn(`[LEA Auto Fill] MAX-Button für Lieferant nicht gefunden (rowEl-Klassen: ${rowEl?.className?.slice(0, 60)})`);
                 }
@@ -415,7 +481,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.15');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.17');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
