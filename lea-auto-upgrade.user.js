@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.9
+// @version      1.1.10
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -228,7 +228,7 @@
             const hasLock = !!container.querySelector('img[src*="locked"], img[src*="lock"], img[src*="schloss"]');
             if (!hasLock) continue;
 
-            const btn = container.querySelector('button');
+            const btn = container.querySelector('button') || container.closest('button');
             if (btn && btn.getBoundingClientRect().width > 0) {
                 return btn;
             }
@@ -237,7 +237,13 @@
         // Fallback: Suchen wir nach dem Schloss-Bild irgendwo auf der Seite
         const allLockImgs = document.querySelectorAll('img[src*="locked"], img[src*="lock"], img[src*="schloss"]');
         for (const lock of allLockImgs) {
-            // Das Schloss ist ein Sibling vom Button oder im gleichen Container
+            // Ist das Schloss direkt in einem Button platziert?
+            const directBtn = lock.closest('button');
+            if (directBtn && directBtn.getBoundingClientRect().width > 0) {
+                return directBtn;
+            }
+
+            // Fallback: Das Schloss ist ein Sibling vom Button oder im gleichen Container
             const container = lock.closest('.relative') || lock.parentElement;
             if (container) {
                 const btn = container.querySelector('button');
@@ -580,7 +586,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.1.9');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.10');
 
         injectScanButton();
 
