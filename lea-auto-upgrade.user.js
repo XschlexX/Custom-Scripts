@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.8
+// @version      1.1.9
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -88,6 +88,24 @@
     // -----------------------------------------------------------------------
     // SUCH-FUNKTIONEN FÜR UPGRADES
     // -----------------------------------------------------------------------
+
+    /**
+     * Findet den scrollbaren Container der Gebäudeübersicht.
+     */
+    function findScrollContainer() {
+        const anchorCard = document.querySelector('[class*="building-card"]');
+        if (!anchorCard) return null;
+        let scrollContainer = anchorCard.parentElement;
+        while (scrollContainer && scrollContainer !== document.body) {
+            const style = window.getComputedStyle(scrollContainer);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll' ||
+                scrollContainer.classList.contains('scroll')) {
+                return scrollContainer;
+            }
+            scrollContainer = scrollContainer.parentElement;
+        }
+        return null;
+    }
 
     /**
      * Prüft, ob ein Gebäude anhand seines Namens von Upgrades ausgeschlossen werden soll.
@@ -296,28 +314,44 @@
             console.log('[LEA Upgrade] Starte Auto-Upgrade Ablauf...');
 
             let hasMoreBuildings = true;
+            let isFirstIteration = true;
 
             while (hasMoreBuildings) {
                 if (stopRequested) throw new Error('STOP');
 
-                // Schritt 1: Liste nach oben scrollen, damit Virtual Scrolling alle Elemente lädt
-                const anchorCard = document.querySelector('[class*="building-card"]');
-                if (anchorCard) {
-                    let scrollContainer = anchorCard.parentElement;
-                    while (scrollContainer && scrollContainer !== document.body) {
-                        const style = window.getComputedStyle(scrollContainer);
-                        if (style.overflowY === 'auto' || style.overflowY === 'scroll' ||
-                            scrollContainer.classList.contains('scroll')) {
-                            scrollContainer.scrollTop = 0;
-                            break;
-                        }
-                        scrollContainer = scrollContainer.parentElement;
-                    }
-                    await new Promise(r => setTimeout(r, 300)); // Kurz warten auf DOM Rendering
+                const scrollContainer = findScrollContainer();
+
+                // Schritt 1: Nur beim ersten Durchlauf an den Anfang scrollen
+                if (isFirstIteration && scrollContainer) {
+                    scrollContainer.scrollTop = 0;
+                    await new Promise(r => setTimeout(r, 400)); // Kurz warten auf DOM Rendering
+                    isFirstIteration = false;
                 }
 
                 // Schritt 2: Nächstes Gebäude suchen und reingehen
-                const arrowBtn = findNextAvailableBuildingArrow();
+                let arrowBtn = findNextAvailableBuildingArrow();
+
+                // Falls im aktuellen Sichtfeld kein Gebäude gefunden wurde, scrollen wir schrittweise nach unten
+                if (!arrowBtn && scrollContainer) {
+                    console.log('[LEA Upgrade] Kein freies Gebäude im Sichtfeld, scrolle nach unten...');
+                    let lastScrollTop = scrollContainer.scrollTop;
+
+                    // Scrolle um 80% der sichtbaren Höhe nach unten
+                    scrollContainer.scrollTop += scrollContainer.clientHeight * 0.8;
+                    await new Promise(r => setTimeout(r, 400)); // Warten auf Virtual-Loading-Rendering
+
+                    // Prüfen, ob wir am Ende der Liste angekommen sind (scrollTop ändert sich nicht mehr)
+                    if (scrollContainer.scrollTop === lastScrollTop) {
+                        console.log('[LEA Upgrade] Ende der Liste erreicht.');
+                        showToast('Alle Upgrades abgeschlossen!');
+                        break;
+                    }
+
+                    // Schleife fortsetzen und im neuen Bereich suchen
+                    continue;
+                }
+
+                // Falls wir immer noch kein arrowBtn haben (z. B. scrollContainer ist null), brechen wir ab
                 if (!arrowBtn) {
                     showToast('Alle Upgrades abgeschlossen!');
                     break;
@@ -546,7 +580,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.0.13');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.9');
 
         injectScanButton();
 
