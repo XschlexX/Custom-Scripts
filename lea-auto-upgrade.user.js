@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.10
+// @version      1.1.11
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -219,12 +219,14 @@
     }
 
     function findLockedProductButton() {
-        // Die gesperrten Produkte haben einen eigenen Container: data-tutorial-id="factory-line-configuration-research-button"
-        // (Das Schloss-Bild ist ein Sibling des Buttons, NICHT im Button selbst!)
-        const researchContainers = document.querySelectorAll('[data-tutorial-id="factory-line-configuration-research-button"]');
-        for (const container of researchContainers) {
+        // Die gesperrten Produkte haben eigene Container:
+        // - factory-line-unlock-resource-button (beim Freischalten mit Geld)
+        // - factory-line-configuration-research-button (beim Erforschen)
+        const containers = document.querySelectorAll(
+            '[data-tutorial-id="factory-line-unlock-resource-button"], [data-tutorial-id="factory-line-configuration-research-button"]'
+        );
+        for (const container of containers) {
             // SICHERHEITSCHECK: Ist WIRKLICH ein Schloss-Icon in diesem Container?
-            // (Manchmal behält das Spiel die tutorial-id auch nach dem Freischalten noch bei!)
             const hasLock = !!container.querySelector('img[src*="locked"], img[src*="lock"], img[src*="schloss"]');
             if (!hasLock) continue;
 
@@ -243,8 +245,12 @@
                 return directBtn;
             }
 
-            // Fallback: Das Schloss ist ein Sibling vom Button oder im gleichen Container
-            const container = lock.closest('.relative') || lock.parentElement;
+            // Das Schloss kann in einem overlay-div (mit pointer-events-none) neben dem Button liegen.
+            // Wir suchen in übergeordneten Containern nach dem zugehörigen Button.
+            const container = lock.closest('[data-tutorial-id="factory-line-unlock-resource-button"]') ||
+                              lock.closest('[data-tutorial-id="factory-line-configuration-research-button"]') ||
+                              lock.closest('.relative')?.parentElement ||
+                              lock.parentElement;
             if (container) {
                 const btn = container.querySelector('button');
                 if (btn && btn.getBoundingClientRect().width > 0) {
@@ -586,7 +592,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.1.10');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.11');
 
         injectScanButton();
 
