@@ -194,37 +194,39 @@
     function isStorageEmptyEnough(card, minEmptyPercentage) {
         if (!card) return false;
 
-        const labelContainers = Array.from(card.querySelectorAll('.bb-label-container'));
-        const storageLabel = labelContainers.find(el => {
-            const text = el.textContent.toLowerCase();
-            return text.includes('lager voll') || text.includes('frei');
-        });
+        // Whitespaces normalisieren (konvertiert auch &nbsp; / \u00a0 zu einem normalen Leerzeichen)
+        const cardText = card.textContent.replace(/\s+/g, ' ').trim();
+        const lowerText = cardText.toLowerCase();
 
-        if (!storageLabel) {
-            console.log('[LEA Storage Refill] Kein Lager-Statuslabel auf der Kachel gefunden. Betrete zur Sicherheit.');
-            return true;
-        }
-
-        const text = storageLabel.textContent.trim();
-        if (text.toLowerCase().includes('lager voll')) {
-            console.log('[LEA Storage Refill] Lager ist voll (0% frei). Überspringe.');
+        // 1. Wenn explizit "lager voll" auf der Kachel steht
+        if (lowerText.includes('lager voll')) {
+            console.log(`[LEA Storage Refill] Kachel "${cardText.substring(0, 35)}...": Lager ist voll (0% frei). Überspringe.`);
             return false;
         }
 
-        const match = text.match(/([\d.,]+)\s*\/\s*([\d.,]+)\s*Frei/i);
+        // 2. Suche nach Zahlenpaar "X / Y" (z.B. "264 / 40.000 Frei", "Frei: 264 / 40.000", "264 / 40.000")
+        const match = cardText.match(/([\d.,]+)\s*\/\s*([\d.,]+)/);
         if (match) {
-            const freeAmount = parseLocalStorageNumber(match[1]);
-            const totalCapacity = parseLocalStorageNumber(match[2]);
-            
-            if (totalCapacity > 0) {
+            const val1 = parseLocalStorageNumber(match[1]);
+            const val2 = parseLocalStorageNumber(match[2]);
+
+            if (val2 > 0) {
+                let freeAmount = val1;
+                const totalCapacity = val2;
+
+                // Falls die erste Zahl die belegte Menge darstellt (z.B. 39.736 / 40.000 belegt)
+                if (val1 > totalCapacity / 2 && !lowerText.includes('frei')) {
+                    freeAmount = Math.max(0, totalCapacity - val1);
+                }
+
                 const freePercentage = (freeAmount / totalCapacity) * 100;
                 const matchesMinLimit = freePercentage >= minEmptyPercentage;
-                console.log(`[LEA Storage Refill] Lager-Status: ${freeAmount}/${totalCapacity} Frei (${freePercentage.toFixed(1)}%). Benötigt: ${minEmptyPercentage}% -> ${matchesMinLimit ? 'Befüllen!' : 'Überspringen'}`);
+                console.log(`[LEA Storage Refill] Kachel "${cardText.substring(0, 35)}...": Frei ${freeAmount}/${totalCapacity} (${freePercentage.toFixed(1)}%). Benötigt: ${minEmptyPercentage}% -> ${matchesMinLimit ? 'Befüllen!' : 'Überspringen'}`);
                 return matchesMinLimit;
             }
         }
 
-        console.warn('[LEA Storage Refill] Statuslabel konnte nicht geparst werden:', text);
+        console.log(`[LEA Storage Refill] Kein eindeutiges Lager-Statuslabel auf Kachel erkannt ("${cardText.substring(0, 50)}"). Betrete zur Sicherheit.`);
         return true;
     }
 
@@ -398,7 +400,7 @@
                         resolve(e.detail.success);
                     };
                     document.addEventListener('lea-auto-fill-finished', handler);
-                    
+
                     // Fallback-Timeout (15 Sekunden)
                     setTimeout(() => {
                         document.removeEventListener('lea-auto-fill-finished', handler);
@@ -411,14 +413,14 @@
                 if (fillUpBtn) {
                     console.log('[LEA Storage Refill] Klicke Fill Up...');
                     simulateClick(fillUpBtn);
-                    
+
                     const success = await autoFillPromise;
                     if (success) {
                         console.log('[LEA Storage Refill] Auto Fill Eingaben getätigt. Fahre Assistenten fort...');
-                        
+
                         // 4. Assistenten-Klicklogik ausführen, um den Transport abzuschicken
                         const assistantResult = await runStorageAssistantRefill();
-                        
+
                         if (assistantResult.status === 'success') {
                             stats.refilled++;
                             consecutiveFailures = 0;
@@ -434,7 +436,7 @@
                             } else {
                                 stats.failed++;
                             }
-                            
+
                             await navigateBackToBuildingOverview();
                             if (status === 'stopped') break;
                         }
@@ -551,10 +553,10 @@
                 row.style.fontSize = '0.85rem';
                 row.style.color = '#d1d5db';
                 row.style.justifyContent = 'flex-start';
-                
+
                 const bullet = document.createElement('span');
                 bullet.textContent = '• ' + name;
-                
+
                 row.appendChild(bullet);
                 list.appendChild(row);
             });

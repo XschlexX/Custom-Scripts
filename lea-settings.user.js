@@ -92,10 +92,10 @@
 
         const inputs = {};
 
-        // Setting: Gebäude-Prefix
+        // Setting: Fabrik-Prefix
         const prefixRow = createSettingRow({
             icon: '🏢',
-            label: 'Gebäude-Prefix',
+            label: 'Fabrik-Prefix',
             type: 'text',
             value: LEA_CONFIG.settings.buildingPrefix,
             placeholder: '(AF)'
