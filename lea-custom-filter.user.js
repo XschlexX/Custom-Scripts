@@ -261,25 +261,20 @@
     }
 
     // -----------------------------------------------------------------------
-    // UI: Filter-Button einfügen
-    // -----------------------------------------------------------------------
-    // -----------------------------------------------------------------------
     // UI: Filter-Buttons erstellen und verwalten
     // -----------------------------------------------------------------------
 
-    function createSearchFilterButton(id, prefix) {
+    function createSearchFilterButton(id, prefix, icon, labelText) {
         const btn = document.createElement('button');
         btn.id = id;
         btn.type = 'button';
         
-        // Bereinigtes Label: z. B. "(AF)" -> "AF"
-        const label = prefix.replace(/[()]/g, '');
-        btn.title = `Suche nach ${prefix} filtern/zurücksetzen`;
+        btn.title = `Suche nach ${prefix} (${labelText}) filtern/zurücksetzen`;
         btn.className = 'bb-base-button size--md shape--square theme--light lea-injected-btn';
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.textContent = label;
+        inner.innerHTML = `<span style="font-size: 16px; line-height: 1; display: block;">${icon}</span><span style="font-size: 10px; line-height: 1.1; display: block; font-weight: 600;">${labelText}</span>`;
         btn.appendChild(inner);
 
         btn.addEventListener('click', async (e) => {
@@ -338,31 +333,40 @@
             }
         }
 
-        // 2. AF Button Zustand
-        const afBtn = document.getElementById(AF_BTN_ID);
-        if (afBtn) {
-            if (activePrefix.toUpperCase() === afPrefix.toUpperCase()) {
-                afBtn.classList.remove('variant--neutral');
-                afBtn.classList.add('variant--normal');
+        // 2. LS Button Zustand (Storage - Links)
+        const lsBtn = document.getElementById(LS_BTN_ID);
+        if (lsBtn) {
+            const inner = lsBtn.querySelector('.lea-injected-btn-inner');
+            if (activePrefix.toUpperCase().includes(lsPrefix.toUpperCase())) {
+                lsBtn.classList.remove('variant--neutral');
+                lsBtn.classList.add('variant--normal', 'lea-filter-btn-active');
+                if (inner) inner.classList.add('lea-filter-btn-inner-active');
             } else {
-                afBtn.classList.remove('variant--normal');
-                afBtn.classList.add('variant--neutral');
+                lsBtn.classList.remove('variant--normal', 'lea-filter-btn-active');
+                lsBtn.classList.add('variant--neutral');
+                if (inner) inner.classList.remove('lea-filter-btn-inner-active');
             }
         }
 
-        // 3. LS Button Zustand
-        const lsBtn = document.getElementById(LS_BTN_ID);
-        if (lsBtn) {
-            if (activePrefix.toUpperCase() === lsPrefix.toUpperCase()) {
-                lsBtn.classList.remove('variant--neutral');
-                lsBtn.classList.add('variant--normal');
+        // 3. AF Button Zustand (Supply - Rechts)
+        const afBtn = document.getElementById(AF_BTN_ID);
+        if (afBtn) {
+            const inner = afBtn.querySelector('.lea-injected-btn-inner');
+            if (activePrefix.toUpperCase().includes(afPrefix.toUpperCase())) {
+                afBtn.classList.remove('variant--neutral');
+                afBtn.classList.add('variant--normal', 'lea-filter-btn-active');
+                if (inner) inner.classList.add('lea-filter-btn-inner-active');
             } else {
-                lsBtn.classList.remove('variant--normal');
-                lsBtn.classList.add('variant--neutral');
+                afBtn.classList.remove('variant--normal', 'lea-filter-btn-active');
+                afBtn.classList.add('variant--neutral');
+                if (inner) inner.classList.remove('lea-filter-btn-inner-active');
             }
         }
     }
 
+    // -----------------------------------------------------------------------
+    // INJEKTION DER BUTTONS
+    // -----------------------------------------------------------------------
     function injectFilterButtons() {
         if (!isBuildingOverviewOpen()) {
             const existing = document.getElementById(INJECT_BTN_ID);
@@ -371,8 +375,6 @@
             if (afBtn) afBtn.remove();
             const lsBtn = document.getElementById(LS_BTN_ID);
             if (lsBtn) lsBtn.remove();
-            const nextBtn = document.getElementById(NEXT_BTN_ID);
-            if (nextBtn) nextBtn.remove();
             return;
         }
 
@@ -382,18 +384,17 @@
         // Container zu Flexbox machen, damit die Buttons nebeneinander liegen
         buildingTypeDiv.classList.add('lea-flex-row');
 
-        // --- 1. Custom Button & Dropdown ---
+        // --- 1. Custom Filter Dropdown Container ---
         if (!document.getElementById(INJECT_BTN_ID)) {
-            // Wrapper-Container für Button und Dropdown
             const container = document.createElement('div');
             container.id = INJECT_BTN_ID;
-            container.className = 'lea-filter-container';
+            container.style.position = 'relative';
+            container.style.display = 'inline-block';
 
-            // Haupt-Button-Element erstellen (quadratisch und spieleigene CSS-Klassen)
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.title = 'Custom Filter Menü öffnen';
-            btn.className = 'bb-base-button size--md shape--square theme--light lea-injected-btn';
+            btn.title = 'Erweiterte Gebäude-Filter';
+            btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn';
 
             const inner = document.createElement('div');
             inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
@@ -402,7 +403,6 @@
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                 </svg>
             `;
-
             btn.appendChild(inner);
             container.appendChild(btn);
 
@@ -506,18 +506,18 @@
             buildingTypeDiv.appendChild(container);
         }
 
-        // --- 2. AF Button ---
-        if (!document.getElementById(AF_BTN_ID)) {
-            const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
-            const afBtn = createSearchFilterButton(AF_BTN_ID, afPrefix);
-            buildingTypeDiv.appendChild(afBtn);
+        // --- 2. LS Button (Storage - Links) ---
+        if (!document.getElementById(LS_BTN_ID)) {
+            const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(MS)';
+            const lsBtn = createSearchFilterButton(LS_BTN_ID, lsPrefix, '📦', 'Storage');
+            buildingTypeDiv.appendChild(lsBtn);
         }
 
-        // --- 3. LS Button ---
-        if (!document.getElementById(LS_BTN_ID)) {
-            const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(LS)';
-            const lsBtn = createSearchFilterButton(LS_BTN_ID, lsPrefix);
-            buildingTypeDiv.appendChild(lsBtn);
+        // --- 3. AF Button (Supply - Rechts) ---
+        if (!document.getElementById(AF_BTN_ID)) {
+            const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
+            const afBtn = createSearchFilterButton(AF_BTN_ID, afPrefix, '🏭', 'Supply');
+            buildingTypeDiv.appendChild(afBtn);
         }
 
         // Zustände aktualisieren

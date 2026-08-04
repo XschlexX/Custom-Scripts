@@ -99,7 +99,7 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.innerHTML = isAutoRunning ? 'STOP' : '📦<br>Storage';
+        inner.innerHTML = isAutoRunning ? 'STOP' : '<span style="font-size: 16px; line-height: 1; display: block;">📦</span><span style="font-size: 10px; line-height: 1.1; display: block; font-weight: 600;">Storage</span>';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
@@ -128,7 +128,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.innerHTML = running ? 'STOP' : '📦<br>Storage';
+                inner.innerHTML = running ? 'STOP' : '<span style="font-size: 16px; line-height: 1; display: block;">📦</span><span style="font-size: 10px; line-height: 1.1; display: block; font-weight: 600;">Storage</span>';
                 if (running) {
                     btn.classList.add('lea-btn-running');
                 } else {
