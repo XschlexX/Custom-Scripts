@@ -305,6 +305,52 @@
     padding-bottom: 12px !important;
 }
 
+/* Tabs navigation */
+.lea-modal-tabs {
+    display: flex !important;
+    gap: 6px !important;
+    margin-bottom: 16px !important;
+    border-bottom: 1px solid #2d3748 !important;
+    padding-bottom: 8px !important;
+}
+
+.lea-modal-tab-btn {
+    flex: 1 !important;
+    background: #2d3748 !important;
+    color: #94a3b8 !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    padding: 8px 4px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+}
+
+.lea-modal-tab-btn:hover {
+    background: #374151 !important;
+    color: #f1f5f9 !important;
+}
+
+.lea-modal-tab-btn.active {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.lea-modal-tab-panel {
+    display: none !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+.lea-modal-tab-panel.active {
+    display: flex !important;
+}
+
 .lea-modal-list {
     display: flex !important;
     flex-direction: column !important;

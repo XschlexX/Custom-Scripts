@@ -99,7 +99,7 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.innerHTML = isAutoRunning ? 'STOP' : 'Auto<br>Fill';
+        inner.innerHTML = isAutoRunning ? 'STOP' : '📦<br>Storage';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
@@ -128,7 +128,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.innerHTML = running ? 'STOP' : 'Auto<br>Fill';
+                inner.innerHTML = running ? 'STOP' : '📦<br>Storage';
                 if (running) {
                     btn.classList.add('lea-btn-running');
                 } else {
@@ -180,9 +180,21 @@
      */
     function parseLocalStorageNumber(str) {
         if (!str) return 0;
-        // Punkte entfernen (Tausendertrenner) und Kommas durch Punkte ersetzen
-        str = str.replace(/\./g, '').replace(/,/g, '.');
-        return parseFloat(str) || 0;
+        str = str.trim().toLowerCase();
+
+        let multiplier = 1;
+        if (str.endsWith('k')) {
+            multiplier = 1000;
+            str = str.slice(0, -1);
+        }
+
+        if (multiplier > 1) {
+            str = str.replace(/,/g, '.');
+        } else {
+            str = str.replace(/\./g, '').replace(/,/g, '.');
+        }
+
+        return (parseFloat(str) || 0) * multiplier;
     }
 
     /**
@@ -194,18 +206,28 @@
     function isStorageEmptyEnough(card, minEmptyPercentage) {
         if (!card) return false;
 
-        // Whitespaces normalisieren (konvertiert auch &nbsp; / \u00a0 zu einem normalen Leerzeichen)
-        const cardText = card.textContent.replace(/\s+/g, ' ').trim();
-        const lowerText = cardText.toLowerCase();
+        // 1. Suche gezielt nach dem Leaf-Element mit dem Status-Label ("568/40K Frei" oder "Lager voll")
+        const leafElements = Array.from(card.querySelectorAll('*')).filter(el => el.children.length === 0);
+        const storageLabel = leafElements.find(el => {
+            const t = el.textContent.trim().toLowerCase();
+            return t.includes('lager voll') || t.includes('/');
+        });
 
-        // 1. Wenn explizit "lager voll" auf der Kachel steht
+        // 2. Extrahiere den isolierten Label-Text (oder füge als Fallback alle Leaf-Texte mit Leerzeichen zusammen)
+        const labelText = storageLabel
+            ? storageLabel.textContent.replace(/\s+/g, ' ').trim()
+            : leafElements.map(el => el.textContent.trim()).filter(Boolean).join(' ');
+
+        const lowerText = labelText.toLowerCase();
+
+        // 3. Wenn explizit "lager voll" auf der Kachel steht
         if (lowerText.includes('lager voll')) {
-            console.log(`[LEA Storage Refill] Kachel "${cardText.substring(0, 35)}...": Lager ist voll (0% frei). Überspringe.`);
+            console.log(`[LEA Storage Refill] Kachel ("${labelText.substring(0, 35)}..."): Lager ist voll (0% frei). Überspringe.`);
             return false;
         }
 
-        // 2. Suche nach Zahlenpaar "X / Y" (z.B. "264 / 40.000 Frei", "Frei: 264 / 40.000", "264 / 40.000")
-        const match = cardText.match(/([\d.,]+)\s*\/\s*([\d.,]+)/);
+        // 4. Suche nach Zahlenpaar "X / Y" (z.B. "568 / 40K Frei", "1947 / 40k", "264 / 40.000")
+        const match = labelText.match(/([\d.,]+[kK]?)\s*\/\s*([\d.,]+[kK]?)/);
         if (match) {
             const val1 = parseLocalStorageNumber(match[1]);
             const val2 = parseLocalStorageNumber(match[2]);
@@ -221,12 +243,12 @@
 
                 const freePercentage = (freeAmount / totalCapacity) * 100;
                 const matchesMinLimit = freePercentage >= minEmptyPercentage;
-                console.log(`[LEA Storage Refill] Kachel "${cardText.substring(0, 35)}...": Frei ${freeAmount}/${totalCapacity} (${freePercentage.toFixed(1)}%). Benötigt: ${minEmptyPercentage}% -> ${matchesMinLimit ? 'Befüllen!' : 'Überspringen'}`);
+                console.log(`[LEA Storage Refill] Kachel: Frei ${freeAmount}/${totalCapacity} (${freePercentage.toFixed(1)}%). Benötigt: ${minEmptyPercentage}% -> ${matchesMinLimit ? 'Befüllen!' : 'Überspringen'}`);
                 return matchesMinLimit;
             }
         }
 
-        console.log(`[LEA Storage Refill] Kein eindeutiges Lager-Statuslabel auf Kachel erkannt ("${cardText.substring(0, 50)}"). Betrete zur Sicherheit.`);
+        console.log(`[LEA Storage Refill] Kein eindeutiges Lager-Statuslabel auf Kachel erkannt ("${labelText.substring(0, 50)}"). Betrete zur Sicherheit.`);
         return true;
     }
 

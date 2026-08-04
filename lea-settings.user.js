@@ -2,7 +2,7 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.10
+// @version      1.0.11
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
@@ -86,12 +86,50 @@
         title.textContent = '⚙️ LEA Einstellungen';
         modal.appendChild(title);
 
-        // Settings-Liste
+        // Tab Navigation Container
+        const tabsContainer = document.createElement('div');
+        tabsContainer.className = 'lea-modal-tabs';
+
+        const tabs = [
+            { id: 'general', label: '🏢 Allgemein' },
+            { id: 'refill', label: '🚛 Refill & Transport' },
+            { id: 'exclusions', label: '🚫 Ausnahmen' }
+        ];
+
+        const panels = {};
+        const tabBtns = {};
+
+        // Settings-Liste Container
         const list = document.createElement('div');
         list.className = 'lea-modal-list';
 
+        tabs.forEach((tab, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `lea-modal-tab-btn ${idx === 0 ? 'active' : ''}`;
+            btn.textContent = tab.label;
+
+            const panel = document.createElement('div');
+            panel.className = `lea-modal-tab-panel ${idx === 0 ? 'active' : ''}`;
+
+            btn.addEventListener('click', () => {
+                Object.values(tabBtns).forEach(b => b.classList.remove('active'));
+                Object.values(panels).forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                panel.classList.add('active');
+            });
+
+            tabBtns[tab.id] = btn;
+            panels[tab.id] = panel;
+            tabsContainer.appendChild(btn);
+            list.appendChild(panel);
+        });
+
+        modal.appendChild(tabsContainer);
+
         const inputs = {};
 
+        // --- TAB 1: Allgemein ---
         // Setting: Fabrik-Prefix
         const prefixRow = createSettingRow({
             icon: '🏢',
@@ -100,7 +138,7 @@
             value: LEA_CONFIG.settings.buildingPrefix,
             placeholder: '(AF)'
         });
-        list.appendChild(prefixRow.row);
+        panels.general.appendChild(prefixRow.row);
         inputs.buildingPrefix = prefixRow.input;
 
         // Setting: Lager-Prefix
@@ -111,9 +149,10 @@
             value: LEA_CONFIG.settings.storagePrefix,
             placeholder: '(LS)'
         });
-        list.appendChild(storagePrefixRow.row);
+        panels.general.appendChild(storagePrefixRow.row);
         inputs.storagePrefix = storagePrefixRow.input;
 
+        // --- TAB 2: Refill & Transport ---
         // Setting: Min. freie Kapazität (%)
         const minEmptyRow = createSettingRow({
             icon: '📊',
@@ -124,33 +163,20 @@
             max: 100,
             placeholder: '30'
         });
-        list.appendChild(minEmptyRow.row);
+        panels.refill.appendChild(minEmptyRow.row);
         inputs.minEmptyPercentage = minEmptyRow.input;
 
-        // Setting: Max. Lieferzeit (Aufträge)
-        const orderTimeRow = createSettingRow({
-            icon: '📦',
-            label: 'Max. Lieferzeit Aufträge (Min)',
-            type: 'number',
-            value: LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes,
-            min: 1,
-            max: 120,
-            placeholder: '15'
-        });
-        list.appendChild(orderTimeRow.row);
-        inputs.maxOrderDeliveryTimeMinutes = orderTimeRow.input;
-
-        // Setting: Max. Lieferzeit (Nachschub)
+        // Setting: Max. Lieferzeit (Lager-Nachschub)
         const supplyTimeRow = createSettingRow({
             icon: '🚛',
-            label: 'Max. Lieferzeit Nachschub (Min)',
+            label: 'Max. Lieferzeit Lager-Nachschub (Min)',
             type: 'number',
             value: LEA_CONFIG.settings.maxSupplyDeliveryTimeMinutes,
             min: 1,
             max: 120,
             placeholder: '15'
         });
-        list.appendChild(supplyTimeRow.row);
+        panels.refill.appendChild(supplyTimeRow.row);
         inputs.maxSupplyDeliveryTimeMinutes = supplyTimeRow.input;
 
         // Setting: Max. Lieferanten-Entfernung (km)
@@ -163,9 +189,23 @@
             max: 10000,
             placeholder: '150'
         });
-        list.appendChild(maxDistanceRow.row);
+        panels.refill.appendChild(maxDistanceRow.row);
         inputs.maxSupplierDistanceKm = maxDistanceRow.input;
 
+        // Setting: Max. Lieferzeit (Aufträge)
+        const orderTimeRow = createSettingRow({
+            icon: '📦',
+            label: 'Max. Lieferzeit Aufträge (Min)',
+            type: 'number',
+            value: LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes,
+            min: 1,
+            max: 120,
+            placeholder: '15'
+        });
+        panels.refill.appendChild(orderTimeRow.row);
+        inputs.maxOrderDeliveryTimeMinutes = orderTimeRow.input;
+
+        // --- TAB 3: Ausnahmen ---
         // Setting: Upgrade überspringen (Komma-getrennt)
         const excludeRow = createSettingRow({
             icon: '🚫',
@@ -174,7 +214,7 @@
             value: LEA_CONFIG.settings.excludeUpgradeNames || '',
             placeholder: 'Fußball, Event'
         });
-        list.appendChild(excludeRow.row);
+        panels.exclusions.appendChild(excludeRow.row);
         inputs.excludeUpgradeNames = excludeRow.input;
 
         // Setting: Aufträge überspringen (Komma-getrennt)
@@ -185,7 +225,7 @@
             value: LEA_CONFIG.settings.excludeOrderNames || '',
             placeholder: 'Stadion, Kunde'
         });
-        list.appendChild(excludeOrderRow.row);
+        panels.exclusions.appendChild(excludeOrderRow.row);
         inputs.excludeOrderNames = excludeOrderRow.input;
 
         modal.appendChild(list);

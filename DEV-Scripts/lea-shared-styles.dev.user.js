@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [DEV] LEA Shared Styles
 // @namespace    lea-tools-dev
-// @version      1.0.0
+// @version      1.0.1
 // @match        https://game.logistics-empire.com/*
 // @run-at       document-start
 // @grant        GM_getResourceText

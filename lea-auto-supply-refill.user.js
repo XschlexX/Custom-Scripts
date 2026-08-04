@@ -97,7 +97,7 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.innerHTML = isAutoRunning ? 'STOP' : 'Auto<br>Refill';
+        inner.innerHTML = isAutoRunning ? 'STOP' : '🏭<br>Supply';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
@@ -121,7 +121,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.innerHTML = running ? 'STOP' : 'Auto<br>Refill';
+                inner.innerHTML = running ? 'STOP' : '🏭<br>Supply';
                 if (running) {
                     btn.classList.add('lea-btn-running');
                 } else {
