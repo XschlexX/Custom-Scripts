@@ -126,11 +126,11 @@
 /* Production Selection Menu Dropdown and Buttons */
 .lea-prod-menu {
     position: absolute !important;
-    background-color: #1e2430 !important;
-    border: 1px solid #34495e !important;
-    border-radius: 8px !important;
+    background: var(--bg-gradient, linear-gradient(180deg, #252b3b 0%, #1a1f2b 100%)) !important;
+    border: 1px solid var(--border-color, #3a475d) !important;
+    border-radius: 10px !important;
     padding: 10px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
     z-index: 9999 !important;
     display: flex !important;
     flex-direction: row !important;

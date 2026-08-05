@@ -2,7 +2,7 @@
 // @name         LEA Auto Produktion Change
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.3
+// @version      1.1.4
 // @match        https://game.logistics-empire.com/*
 // @description  Aendert die Produktion in den Produktionslinien per Knopfdruck.
 // @run-at       document-idle
@@ -368,74 +368,27 @@
         const topRow = document.createElement('div');
         topRow.className = 'lea-prod-row lea-prod-row-end';
 
-        const bottomRow = document.createElement('div');
-        bottomRow.className = 'lea-prod-row lea-prod-row-end';
-
         menu.className = 'lea-prod-menu theme--light variant--neutral lea-prod-menu-col';
 
-        options.forEach(opt => {
-            const optBtn = document.createElement('div');
-            optBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn theme--light variant--neutral lea-tile-64';
-            optBtn.setAttribute('data-v-d2de3745', '');
-
-            let contentHtml = '';
-            if (opt.imgSrc) {
-                contentHtml = `<img src="${opt.imgSrc}" draggable="false" class="object-contain size-full object-center" style="width: 100%; height: 100%;">`;
-            } else {
-                let emoji = '📦';
-                if (opt.action === 'stop') emoji = '🛑';
-                else if (opt.action === 'mix') emoji = '🔀';
-                contentHtml = `<div class="flex items-center justify-center size-full" style="font-size: 32px; width: 100%; height: 100%;">${emoji}</div>`;
-            }
-
-            optBtn.innerHTML = `
-                <div data-v-25a4a5a3="" class="bb-beveled-tile drop-shadow-(--outer-shadow) **:h-full tile--normal bb-base-tile__background">
-                    <div data-v-25a4a5a3="" class="tile__border border border-(--border-color) bg-(--border-color)" style="clip-path: polygon(10px 0px, calc(100% - 10px) 0px, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0px calc(100% - 10px), 0px 10px);">
-                        <div data-v-25a4a5a3="" style="--shadow-in-color: #291F02;">
-                            <div data-v-25a4a5a3="" class="tile__background flex items-center justify-center [background:var(--bg-gradient)]" style="clip-path: polygon(9.6px 0px, calc(100% - 9.6px) 0px, 100% 9.6px, 100% calc(100% - 9.6px), calc(100% - 9.6px) 100%, 9.6px 100%, 0px calc(100% - 9.6px), 0px 9.6px);"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
-                    <div class="relative size-full min-h-0 overflow-hidden flex items-center justify-center">
-                        ${contentHtml}
-                    </div>
-                </div>
-            `;
-
-            optBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log(`[LEA Auto Prod Change] Option gewählt: ${opt.action}`);
-                if (opt.action === 'mix' && cached && cached.products) {
-                    if (cached.products.length >= 3) {
-                        menu.remove();
-                        // Sofort die ersten 3 Produkte auf die 3 Linien verteilen
-                        executeProductionChange([
-                            cached.products[0].action,
-                            cached.products[1].action,
-                            cached.products[2].action
-                        ]);
-                    } else if (cached.products.length === 2) {
-                        renderMixSubMenu(menu, anchorBtn, cached.products);
-                    } else {
-                        menu.remove();
-                        executeProductionChange(opt.action);
-                    }
-                } else {
-                    menu.remove();
-                    executeProductionChange(opt.action);
-                }
-            });
-
-            if (opt.action === 'stop' || opt.action === 'mix') {
-                topRow.appendChild(optBtn);
-            } else {
-                bottomRow.appendChild(optBtn);
-            }
+        // 1. Steuerungs-Aktionen (Stop & Mix) in die oberste Zeile
+        const controlOpts = options.filter(opt => opt.action === 'stop' || opt.action === 'mix');
+        controlOpts.forEach(opt => {
+            topRow.appendChild(createOptionButton(opt, cached, anchorBtn, menu));
         });
-
         menu.appendChild(topRow);
-        menu.appendChild(bottomRow);
+
+        // 2. Produkt-Buttons in Zeilen von max. 3 Produkten aufteilen (verhindert das Rausrutschen nach links)
+        const productOpts = options.filter(opt => opt.action !== 'stop' && opt.action !== 'mix');
+        const MAX_PER_ROW = 3;
+        for (let i = 0; i < productOpts.length; i += MAX_PER_ROW) {
+            const prodRow = document.createElement('div');
+            prodRow.className = 'lea-prod-row lea-prod-row-end';
+            const chunk = productOpts.slice(i, i + MAX_PER_ROW);
+            chunk.forEach(opt => {
+                prodRow.appendChild(createOptionButton(opt, cached, anchorBtn, menu));
+            });
+            menu.appendChild(prodRow);
+        }
 
         // Klick irgendwoanders schließt das Menü
         const closeMenu = (e) => {
@@ -452,6 +405,66 @@
         const menuRect = menu.getBoundingClientRect();
         menu.style.left = `${rect.right + window.scrollX - menuRect.width}px`;
         menu.style.visibility = 'visible';
+    }
+
+    /**
+     * Erstellt einen einzelnen Kachel-Button für das Menü.
+     */
+    function createOptionButton(opt, cached, anchorBtn, menu) {
+        const optBtn = document.createElement('div');
+        optBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn theme--light variant--neutral lea-tile-64';
+        optBtn.setAttribute('data-v-d2de3745', '');
+
+        let contentHtml = '';
+        if (opt.imgSrc) {
+            contentHtml = `<img src="${opt.imgSrc}" draggable="false" class="object-contain size-full object-center" style="width: 100%; height: 100%;">`;
+        } else {
+            let emoji = '📦';
+            if (opt.action === 'stop') emoji = '🛑';
+            else if (opt.action === 'mix') emoji = '🔀';
+            contentHtml = `<div class="flex items-center justify-center size-full" style="font-size: 32px; width: 100%; height: 100%;">${emoji}</div>`;
+        }
+
+        optBtn.innerHTML = `
+            <div data-v-25a4a5a3="" class="bb-beveled-tile drop-shadow-(--outer-shadow) **:h-full tile--normal bb-base-tile__background">
+                <div data-v-25a4a5a3="" class="tile__border border border-(--border-color) bg-(--border-color)" style="clip-path: polygon(10px 0px, calc(100% - 10px) 0px, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0px calc(100% - 10px), 0px 10px);">
+                    <div data-v-25a4a5a3="" style="--shadow-in-color: #291F02;">
+                        <div data-v-25a4a5a3="" class="tile__background flex items-center justify-center [background:var(--bg-gradient)]" style="clip-path: polygon(9.6px 0px, calc(100% - 9.6px) 0px, 100% 9.6px, 100% calc(100% - 9.6px), calc(100% - 9.6px) 100%, 9.6px 100%, 0px calc(100% - 9.6px), 0px 9.6px);"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
+                <div class="relative size-full min-h-0 overflow-hidden flex items-center justify-center">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+
+        optBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log(`[LEA Auto Prod Change] Option gewählt: ${opt.action}`);
+            if (opt.action === 'mix' && cached && cached.products) {
+                if (cached.products.length >= 3) {
+                    menu.remove();
+                    // Sofort die ersten 3 Produkte auf die 3 Linien verteilen
+                    executeProductionChange([
+                        cached.products[0].action,
+                        cached.products[1].action,
+                        cached.products[2].action
+                    ]);
+                } else if (cached.products.length === 2) {
+                    renderMixSubMenu(menu, anchorBtn, cached.products);
+                } else {
+                    menu.remove();
+                    executeProductionChange(opt.action);
+                }
+            } else {
+                menu.remove();
+                executeProductionChange(opt.action);
+            }
+        });
+
+        return optBtn;
     }
 
     // -----------------------------------------------------------------------
@@ -577,7 +590,7 @@
      * Initialisiert das Skript und startet den MutationObserver.
      */
     function init() {
-        console.log('[LEA Auto Prod Change] Initialisiert v1.1.1');
+        console.log('[LEA Auto Prod Change] Initialisiert v1.1.4');
 
         injectProductionChangeButton();
 
