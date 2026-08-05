@@ -239,13 +239,13 @@
 
     function renderMixSubMenu(menu, anchorBtn, products) {
         menu.innerHTML = '';
-        menu.className = 'lea-prod-menu theme--light variant--neutral lea-prod-menu-col';
+        menu.className = 'lea-prod-menu lea-prod-menu-col';
 
         const topRow = document.createElement('div');
         topRow.className = 'lea-prod-row lea-prod-row-start';
 
         const backBtn = document.createElement('div');
-        backBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn theme--light variant--neutral lea-tile-32';
+        backBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn lea-tile-32';
         backBtn.setAttribute('data-v-d2de3745', '');
         backBtn.innerHTML = `
             <div class="bb-beveled-tile tile--normal bb-base-tile__background">
@@ -284,7 +284,7 @@
 
         combinations.forEach(combo => {
             const comboBtn = document.createElement('div');
-        comboBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn theme--light variant--neutral lea-tile-100x40';
+            comboBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn lea-tile-100x40';
             comboBtn.setAttribute('data-v-d2de3745', '');
 
             let imgsHtml = combo.map(p => `<img src="${p.imgSrc}" draggable="false" style="width: 24px; height: 24px; object-fit: contain;">`).join('');
@@ -330,8 +330,7 @@
 
         const menu = document.createElement('div');
         menu.id = MENU_ID;
-        // Füge native Theme- und Varianten-Klassen hinzu, damit CSS-Variablen wie --bg-gradient greifen
-        menu.className = 'lea-prod-menu theme--light variant--neutral';
+        menu.className = 'lea-prod-menu';
 
         const rect = anchorBtn.getBoundingClientRect();
         menu.style.top = `${rect.bottom + window.scrollY + 10}px`;
@@ -364,7 +363,7 @@
         const topRow = document.createElement('div');
         topRow.className = 'lea-prod-row lea-prod-row-end';
 
-        menu.className = 'lea-prod-menu theme--light variant--neutral lea-prod-menu-col';
+        menu.className = 'lea-prod-menu lea-prod-menu-col';
 
         // 1. Steuerungs-Aktionen (Stop & Mix) in die oberste Zeile
         const controlOpts = options.filter(opt => opt.action === 'stop' || opt.action === 'mix');
@@ -408,7 +407,7 @@
      */
     function createOptionButton(opt, cached, anchorBtn, menu) {
         const optBtn = document.createElement('div');
-        optBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn theme--light variant--neutral lea-tile-64';
+        optBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn lea-tile-64';
         optBtn.setAttribute('data-v-d2de3745', '');
 
         let contentHtml = '';
