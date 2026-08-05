@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.11
+// @version      1.1.12
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -157,9 +157,19 @@
     function findExpandButton() {
         const expandBtns = Array.from(document.querySelectorAll('button.variant--normal')).filter(btn => {
             const txt = btn.querySelector('.text-font-dark');
-            return txt && txt.textContent.includes('Ausbauen') && btn.getAttribute('disabled') === null;
+            if (!txt || btn.getAttribute('disabled') !== null) return false;
+            const textContent = txt.textContent.toLowerCase();
+            return textContent.includes('ausbauen') || textContent.includes('upgraden') || textContent.includes('parkplatz');
         });
         if (expandBtns.length > 0) return expandBtns[0];
+
+        const parkingImgs = document.querySelectorAll('button:not([disabled]) img[data-key*="parking"], button:not([disabled]) img[src*="parking"]');
+        for (const img of parkingImgs) {
+            const btn = img.closest('button');
+            if (btn && btn.getAttribute('disabled') === null && btn.getBoundingClientRect().width > 0) {
+                return btn;
+            }
+        }
 
         const storageImgs = document.querySelectorAll('button:not([disabled]) img[src*="icon_improve_storage"]');
         if (storageImgs.length > 0) return storageImgs[0].closest('button');
@@ -592,7 +602,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.1.11');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.12');
 
         injectScanButton();
 
