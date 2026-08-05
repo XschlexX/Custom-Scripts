@@ -184,10 +184,26 @@
 }
 
 .lea-prod-menu-btn {
-    text-align: center !important;
-    font-weight: bold !important;
-    border-radius: 4px !important;
+    position: relative !important;
     cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: linear-gradient(180deg, #24354d 0%, #142030 100%) !important;
+    border: 2px solid #3c5478 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+    transition: transform 0.1s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.lea-prod-menu-btn:hover {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    transform: scale(1.05) !important;
+}
+
+.lea-prod-menu-btn:active {
+    transform: scale(0.95) !important;
 }
 
 /* Custom Building Filter Container, Dropdown & Content */

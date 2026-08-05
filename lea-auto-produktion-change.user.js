@@ -248,11 +248,6 @@
         backBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn lea-tile-32';
         backBtn.setAttribute('data-v-d2de3745', '');
         backBtn.innerHTML = `
-            <div class="bb-beveled-tile tile--normal bb-base-tile__background">
-                <div class="tile__frame">
-                    <div class="tile__fill"></div>
-                </div>
-            </div>
             <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
                 <div class="relative size-full min-h-0 overflow-hidden flex items-center justify-center" style="font-size: 16px;">
                     🔙
@@ -290,11 +285,6 @@
             let imgsHtml = combo.map(p => `<img src="${p.imgSrc}" draggable="false" style="width: 24px; height: 24px; object-fit: contain;">`).join('');
 
             comboBtn.innerHTML = `
-                <div class="bb-beveled-tile tile--normal bb-base-tile__background">
-                    <div class="tile__frame">
-                        <div class="tile__fill"></div>
-                    </div>
-                </div>
                 <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
                     <div class="relative size-full min-h-0 overflow-hidden flex items-center justify-center" style="gap: 4px;">
                         ${imgsHtml}
@@ -421,11 +411,6 @@
         }
 
         optBtn.innerHTML = `
-            <div class="bb-beveled-tile tile--normal bb-base-tile__background">
-                <div class="tile__frame">
-                    <div class="tile__fill"></div>
-                </div>
-            </div>
             <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
                 <div class="relative size-full min-h-0 overflow-hidden flex items-center justify-center">
                     ${contentHtml}
