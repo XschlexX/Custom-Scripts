@@ -248,11 +248,9 @@
         backBtn.className = 'bb-base-tile cursor-pointer lea-prod-menu-btn theme--light variant--neutral lea-tile-32';
         backBtn.setAttribute('data-v-d2de3745', '');
         backBtn.innerHTML = `
-            <div data-v-25a4a5a3="" class="bb-beveled-tile drop-shadow-(--outer-shadow) **:h-full tile--normal bb-base-tile__background">
-                <div data-v-25a4a5a3="" class="tile__border border border-(--border-color) bg-(--border-color)" style="clip-path: polygon(10px 0px, calc(100% - 10px) 0px, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0px calc(100% - 10px), 0px 10px);">
-                    <div data-v-25a4a5a3="" style="--shadow-in-color: #291F02;">
-                        <div data-v-25a4a5a3="" class="tile__background flex items-center justify-center [background:var(--bg-gradient)]" style="clip-path: polygon(9.6px 0px, calc(100% - 9.6px) 0px, 100% 9.6px, 100% calc(100% - 9.6px), calc(100% - 9.6px) 100%, 9.6px 100%, 0px calc(100% - 9.6px), 0px 9.6px);"></div>
-                    </div>
+            <div class="bb-beveled-tile tile--normal bb-base-tile__background">
+                <div class="tile__frame">
+                    <div class="tile__fill"></div>
                 </div>
             </div>
             <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
@@ -292,11 +290,9 @@
             let imgsHtml = combo.map(p => `<img src="${p.imgSrc}" draggable="false" style="width: 24px; height: 24px; object-fit: contain;">`).join('');
 
             comboBtn.innerHTML = `
-                <div data-v-25a4a5a3="" class="bb-beveled-tile drop-shadow-(--outer-shadow) **:h-full tile--normal bb-base-tile__background">
-                    <div data-v-25a4a5a3="" class="tile__border border border-(--border-color) bg-(--border-color)" style="clip-path: polygon(10px 0px, calc(100% - 10px) 0px, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0px calc(100% - 10px), 0px 10px);">
-                        <div data-v-25a4a5a3="" style="--shadow-in-color: #291F02;">
-                            <div data-v-25a4a5a3="" class="tile__background flex items-center justify-center [background:var(--bg-gradient)]" style="clip-path: polygon(9.6px 0px, calc(100% - 9.6px) 0px, 100% 9.6px, 100% calc(100% - 9.6px), calc(100% - 9.6px) 100%, 9.6px 100%, 0px calc(100% - 9.6px), 0px 9.6px);"></div>
-                        </div>
+                <div class="bb-beveled-tile tile--normal bb-base-tile__background">
+                    <div class="tile__frame">
+                        <div class="tile__fill"></div>
                     </div>
                 </div>
                 <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
@@ -426,11 +422,9 @@
         }
 
         optBtn.innerHTML = `
-            <div data-v-25a4a5a3="" class="bb-beveled-tile drop-shadow-(--outer-shadow) **:h-full tile--normal bb-base-tile__background">
-                <div data-v-25a4a5a3="" class="tile__border border border-(--border-color) bg-(--border-color)" style="clip-path: polygon(10px 0px, calc(100% - 10px) 0px, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0px calc(100% - 10px), 0px 10px);">
-                    <div data-v-25a4a5a3="" style="--shadow-in-color: #291F02;">
-                        <div data-v-25a4a5a3="" class="tile__background flex items-center justify-center [background:var(--bg-gradient)]" style="clip-path: polygon(9.6px 0px, calc(100% - 9.6px) 0px, 100% 9.6px, 100% calc(100% - 9.6px), calc(100% - 9.6px) 100%, 9.6px 100%, 0px calc(100% - 9.6px), 0px 9.6px);"></div>
-                    </div>
+            <div class="bb-beveled-tile tile--normal bb-base-tile__background">
+                <div class="tile__frame">
+                    <div class="tile__fill"></div>
                 </div>
             </div>
             <div class="bb-base-tile__content p-0.75" style="position: absolute; inset: 0; z-index: 1;">
