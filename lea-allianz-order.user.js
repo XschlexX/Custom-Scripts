@@ -10,7 +10,7 @@
 // @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-allianz-order.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-allianz-order.user.js
-// ==UserScript==
+// ==/UserScript==
 
 (function () {
     'use strict';
@@ -61,9 +61,9 @@
     function injectButtonIfOnAlliancePage() {
         const bodyText = document.body.textContent || '';
         const isAlliancePage = location.hash.includes('alliances') ||
-                               bodyText.includes('Allianz-Aufträge') ||
-                               bodyText.includes('Gelieferte Container') ||
-                               bodyText.includes('Belade Container');
+            bodyText.includes('Allianz-Aufträge') ||
+            bodyText.includes('Gelieferte Container') ||
+            bodyText.includes('Belade Container');
 
         if (!isAlliancePage) {
             const existingBtn = document.getElementById(INJECT_BTN_ID);
@@ -137,21 +137,21 @@
 
         containers.forEach((container, index) => {
             // 1. Finde den Start-Button (enthält img mit start_order)
-            const truckBtn = container.querySelector('button') || 
-                             Array.from(container.querySelectorAll('button')).find(b => {
-                                 const img = b.querySelector('img');
-                                 const key = img ? (img.getAttribute('data-key') || img.src || '') : '';
-                                 return key.includes('start_order') || key.includes('truck');
-                             });
+            const truckBtn = container.querySelector('button') ||
+                Array.from(container.querySelectorAll('button')).find(b => {
+                    const img = b.querySelector('img');
+                    const key = img ? (img.getAttribute('data-key') || img.src || '') : '';
+                    return key.includes('start_order') || key.includes('truck');
+                });
 
             if (!truckBtn) return;
 
             // 2. Finde das Produkt-Bild (data-key startet mit regular/res_ oder src enthält res_)
             const productImgEl = container.querySelector('img[data-key*="res_"], img[src*="res_"]') ||
-                                Array.from(container.querySelectorAll('img')).find(img => {
-                                    const key = (img.getAttribute('data-key') || img.src || '').toLowerCase();
-                                    return !key.includes('sub_order') && !key.includes('start_order') && !key.includes('container');
-                                });
+                Array.from(container.querySelectorAll('img')).find(img => {
+                    const key = (img.getAttribute('data-key') || img.src || '').toLowerCase();
+                    return !key.includes('sub_order') && !key.includes('start_order') && !key.includes('container');
+                });
 
             const productImgSrc = productImgEl ? productImgEl.src : '';
 
