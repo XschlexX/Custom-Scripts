@@ -2,7 +2,7 @@
 // @name         LEA Allianz-Auftrag Assistent
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.4
+// @version      1.0.5
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisches Versenden von Containern für Allianz-Aufträge.
 // @run-at       document-idle
@@ -31,7 +31,7 @@
     // INIT & OBSERVER
     // =========================================================================
     function init() {
-        console.log('[LEA Allianz Order] Skript v1.0.4 geladen.');
+        console.log('[LEA Allianz Order] Skript v1.0.5 geladen.');
 
         observer = new MutationObserver(() => {
             if (!isHandlingMutations) {
@@ -296,11 +296,6 @@
                     c.style.background = active ? '#0f172a' : '#334155';
                     c.style.borderColor = active ? '#f59e0b' : 'transparent';
                 });
-
-                const inputEl = modal.querySelector('#lea-container-input');
-                if (inputEl) {
-                    inputEl.value = items[selectedIndex].remaining || 1;
-                }
             });
 
             cardsContainer.appendChild(card);
@@ -314,12 +309,12 @@
         inputSection.innerHTML = `
             <div style="font-size: 13px; color: #94a3b8; font-weight: 600;">2. Wie viele Container möchtest du senden?</div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <input id="lea-container-input" type="number" min="1" max="${items[0].remaining || 999}" value="${items[0].remaining || 1}" 
+                <input id="lea-container-input" type="number" min="1" max="999" value="5" 
                        style="flex: 1; background: #0f172a; border: 1px solid #475569; border-radius: 8px; padding: 10px; color: #fff; font-size: 16px; font-weight: bold; text-align: center;">
                 <button type="button" class="lea-preset-btn" data-val="1" style="background: #334155; border: 1px solid #475569; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600;">1</button>
                 <button type="button" class="lea-preset-btn" data-val="5" style="background: #334155; border: 1px solid #475569; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600;">5</button>
                 <button type="button" class="lea-preset-btn" data-val="10" style="background: #334155; border: 1px solid #475569; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600;">10</button>
-                <button type="button" id="lea-preset-max" style="background: #f59e0b; border: none; border-radius: 8px; padding: 10px 14px; color: #000; font-size: 13px; cursor: pointer; font-weight: bold;">MAX</button>
+                <button type="button" class="lea-preset-btn" data-val="20" style="background: #334155; border: 1px solid #475569; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600;">20</button>
             </div>
         `;
 
@@ -350,10 +345,6 @@
             btn.addEventListener('click', () => {
                 inputEl.value = btn.dataset.val;
             });
-        });
-
-        modal.querySelector('#lea-preset-max').addEventListener('click', () => {
-            inputEl.value = items[selectedIndex].remaining || 1;
         });
 
         const closeModal = () => backdrop.remove();
