@@ -7,4 +7,4 @@
 // @grant        none
 // @require      file:///d:/Clouds/OneDrive/Apps/Tampermonkey/Logistics-Empire-Scripts/lea-shared-helpers.js
 // @require      file:///d:/Clouds/OneDrive/Apps/Tampermonkey/Logistics-Empire-Scripts/lea-allianz-order.user.js
-// ==UserScript==
+// ==/UserScript==

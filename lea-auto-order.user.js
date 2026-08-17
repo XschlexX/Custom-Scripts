@@ -91,8 +91,8 @@
     }
 
     function passiveCheckDeliveryTime() {
-        // Deaktiviere die Warnung und entsperre Knöpfe, wenn das automatische Skript gerade arbeitet
-        if (isAutoRunning) {
+        // Deaktiviere die Warnung und entsperre Knöpfe, wenn ein automatisches Skript arbeitet
+        if (isAutoRunning || (window.LEA_CONFIG && window.LEA_CONFIG.isAutomationRunning)) {
             showTimeWarning(false);
             enableTransportButtons(true);
             return;

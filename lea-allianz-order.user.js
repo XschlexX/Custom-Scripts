@@ -2,7 +2,7 @@
 // @name         LEA Allianz-Auftrag Assistent
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.0
+// @version      1.0.4
 // @match        https://game.logistics-empire.com/*
 // @description  Automatisches Versenden von Containern für Allianz-Aufträge.
 // @run-at       document-idle
@@ -31,7 +31,7 @@
     // INIT & OBSERVER
     // =========================================================================
     function init() {
-        console.log('[LEA Allianz Order] Skript v1.0.0 geladen.');
+        console.log('[LEA Allianz Order] Skript v1.0.4 geladen.');
 
         observer = new MutationObserver(() => {
             if (!isHandlingMutations) {
@@ -56,11 +56,14 @@
     // =========================================================================
 
     /**
-     * Prüft, ob die Allianz-Auftragsseite geöffnet ist, und injiziert den "Allianzorder"-Button.
+     * Prüft, ob die Allianz-Auftragsseite geöffnet ist, und injiziert den "Allianz-\nOrder"-Button in die Header-Leiste.
      */
     function injectButtonIfOnAlliancePage() {
         const bodyText = document.body.textContent || '';
-        const isAlliancePage = bodyText.includes('Allianz-Aufträge') || bodyText.includes('Belade Container, um den Allianz-Auftrag zu erfüllen');
+        const isAlliancePage = location.hash.includes('alliances') ||
+                               bodyText.includes('Allianz-Aufträge') ||
+                               bodyText.includes('Gelieferte Container') ||
+                               bodyText.includes('Belade Container');
 
         if (!isAlliancePage) {
             const existingBtn = document.getElementById(INJECT_BTN_ID);
@@ -70,28 +73,27 @@
 
         if (document.getElementById(INJECT_BTN_ID)) return;
 
-        // Finde den Injektionsort: Sucht nach dem Headerbereich der Allianz-Aufträge oder Stecknadel-Icon
-        const pinIcon = document.querySelector('img[src*="pin"], img[src*="location"], img[src*="map_pin"], img[src*="edit"]');
-        let headerContainer = null;
+        // Finde den Injektionsort: Header-Button-Container (.flex.gap-2) neben Map/Manage Buttons
+        const headerIcon = document.querySelector('img[data-key*="tobuildingonmap"], img[src*="tobuildingonmap"], img[data-key*="manage"], img[src*="manage"], img[data-key*="sub_order"]');
+        let btnContainer = null;
 
-        if (pinIcon) {
-            headerContainer = pinIcon.closest('div.flex') || pinIcon.parentElement;
-        } else {
-            // Fallback: Suche Überschrift "Logistikzentrum" oder "Allianz-Aufträge"
-            const titleEl = Array.from(document.querySelectorAll('.text-h2, h2, div')).find(el => 
-                el.textContent.includes('Logistikzentrum') || el.textContent.includes('Allianz-Aufträge')
-            );
-            if (titleEl) {
-                headerContainer = titleEl.closest('div.flex') || titleEl.parentElement;
+        if (headerIcon) {
+            btnContainer = headerIcon.closest('.flex.gap-2') || headerIcon.closest('.justify-self-end') || headerIcon.parentElement;
+        }
+
+        if (!btnContainer) {
+            const panelHeader = document.querySelector('.panel-header .justify-self-end, .panel-header');
+            if (panelHeader) {
+                btnContainer = panelHeader.querySelector('.flex.gap-2') || panelHeader;
             }
         }
 
-        if (!headerContainer) return;
+        if (!btnContainer) return;
 
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
-        btn.className = 'bb-base-button variant--neutral size--md theme--light lea-injected-btn';
+        btn.className = 'bb-base-button variant--neutral size--md shape--square theme--light lea-injected-btn my-1 size-12';
         if (isAutoRunning) {
             btn.classList.add('lea-btn-running');
         }
@@ -99,7 +101,8 @@
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
-        inner.innerHTML = isAutoRunning ? 'STOP' : 'Allianzorder';
+        inner.style.cssText = 'font-size: 10px; line-height: 1.1; font-weight: bold; text-align: center; white-space: pre-line; padding: 2px;';
+        inner.textContent = isAutoRunning ? 'STOP' : 'Allianz-\nOrder';
         btn.appendChild(inner);
 
         btn.addEventListener('click', (e) => {
@@ -113,12 +116,9 @@
             }
         });
 
-        // Vor dem Pin-Icon oder am Ende des Header-Containers einfügen
-        if (pinIcon && pinIcon.parentElement) {
-            pinIcon.parentElement.parentNode.insertBefore(btn, pinIcon.parentElement);
-        } else {
-            headerContainer.appendChild(btn);
-        }
+        // Als erstes Element im Button-Container einfügen
+        btnContainer.insertBefore(btn, btnContainer.firstChild);
+        console.log('[LEA Allianz Order] Quadratischer Button "Allianz-Order" im Header injiziert!');
     }
 
     // =========================================================================
@@ -126,52 +126,37 @@
     // =========================================================================
 
     /**
-     * Liest die verfügbaren Warenzeilen aus dem Allianz-Auftragsfenster aus.
+     * Liest die verfügbaren Warenzeilen (.lao-container) aus dem Allianz-Auftragsfenster aus.
      * @returns {Array} Liste der ausgelesenen Produkt-Objekte.
      */
     function extractAllianceOrderItems() {
         const items = [];
 
-        // Suche nach allen LKW-Buttons in der Auftragsübersicht
-        const buttons = Array.from(document.querySelectorAll('button')).filter(b => {
-            const img = b.querySelector('img');
-            return img && (img.src.includes('truck') || img.src.includes('transport') || img.src.includes('delivery'));
-        });
+        // Suche alle Allianz-Auftrags-Container (.lao-container)
+        const containers = Array.from(document.querySelectorAll('.lao-container, [class*="lao-container"]'));
 
-        buttons.forEach((truckBtn, index) => {
-            let rowContainer = truckBtn.closest('div.flex') || truckBtn.parentElement;
-            // Gehe im DOM etwas höher, um die gesamte Warenzeile zu erfassen
-            for (let depth = 0; depth < 3; depth++) {
-                if (rowContainer && rowContainer.parentElement && rowContainer.querySelectorAll('img').length >= 2) {
-                    break;
-                }
-                if (rowContainer && rowContainer.parentElement) {
-                    rowContainer = rowContainer.parentElement;
-                }
-            }
+        containers.forEach((container, index) => {
+            // 1. Finde den Start-Button (enthält img mit start_order)
+            const truckBtn = container.querySelector('button') || 
+                             Array.from(container.querySelectorAll('button')).find(b => {
+                                 const img = b.querySelector('img');
+                                 const key = img ? (img.getAttribute('data-key') || img.src || '') : '';
+                                 return key.includes('start_order') || key.includes('truck');
+                             });
 
-            if (!rowContainer) return;
+            if (!truckBtn) return;
 
-            // Finde Produkt-Bild (erstes Bild in der Zeile, das kein Container/LKW ist)
-            const imgs = Array.from(rowContainer.querySelectorAll('img')).filter(img => {
-                const src = img.src.toLowerCase();
-                return !src.includes('truck') && !src.includes('container') && !src.includes('transport');
-            });
+            // 2. Finde das Produkt-Bild (data-key startet mit regular/res_ oder src enthält res_)
+            const productImgEl = container.querySelector('img[data-key*="res_"], img[src*="res_"]') ||
+                                Array.from(container.querySelectorAll('img')).find(img => {
+                                    const key = (img.getAttribute('data-key') || img.src || '').toLowerCase();
+                                    return !key.includes('sub_order') && !key.includes('start_order') && !key.includes('container');
+                                });
 
-            const productImg = imgs[0] ? imgs[0].src : '';
+            const productImgSrc = productImgEl ? productImgEl.src : '';
 
-            // Produktnamen aus Bild-URL ableiten (z. B. "brot.png" -> "Brot")
-            let productName = `Produkt ${index + 1}`;
-            if (productImg) {
-                const fileNameMatch = productImg.match(/\/([^\/]+)\.(png|webp|svg|jpg)/i);
-                if (fileNameMatch && fileNameMatch[1]) {
-                    const rawName = fileNameMatch[1].replace(/[-_]/g, ' ');
-                    productName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-                }
-            }
-
-            // Mengen auslesen (z.B. "45/82")
-            const rowText = rowContainer.textContent || '';
+            // 3. Mengen auslesen (z.B. "45/82")
+            const rowText = container.textContent || '';
             const ratioMatch = rowText.match(/(\d+)\s*\/\s*(\d+)/);
 
             let current = 0;
@@ -186,8 +171,7 @@
 
             items.push({
                 index,
-                name: productName,
-                imgSrc: productImg,
+                imgSrc: productImgSrc,
                 current,
                 total,
                 remaining,
@@ -195,6 +179,7 @@
             });
         });
 
+        console.log('[LEA Allianz Order] Ausgelesene Aufträge:', items);
         return items;
     }
 
@@ -287,19 +272,19 @@
                 background: ${isSelected ? '#0f172a' : '#334155'} !important;
                 border: 2px solid ${isSelected ? '#f59e0b' : 'transparent'} !important;
                 border-radius: 12px !important;
-                padding: 12px !important;
+                padding: 16px 12px !important;
                 cursor: pointer !important;
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: center !important;
-                gap: 6px !important;
+                justify-content: center !important;
+                gap: 8px !important;
                 transition: all 0.2s ease !important;
             `;
 
             card.innerHTML = `
-                <img src="${item.imgSrc}" style="width: 44px; height: 44px; object-fit: contain;" alt="${item.name}">
-                <div style="font-weight: bold; font-size: 14px; color: #f8fafc;">${item.name}</div>
-                <div style="font-size: 12px; color: #cbd5e1;">${item.current} / ${item.total}</div>
+                <img src="${item.imgSrc}" style="width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));" alt="Produkt Icon">
+                <div style="font-weight: bold; font-size: 14px; color: #cbd5e1;">${item.current} / ${item.total}</div>
                 <div style="font-size: 11px; color: #38bdf8; font-weight: 600;">noch ${item.remaining} frei</div>
             `;
 
@@ -312,7 +297,6 @@
                     c.style.borderColor = active ? '#f59e0b' : 'transparent';
                 });
 
-                // Setze Container-Eingabe automatisch auf das verbleibende Maximum des gewählten Produkts
                 const inputEl = modal.querySelector('#lea-container-input');
                 if (inputEl) {
                     inputEl.value = items[selectedIndex].remaining || 1;
@@ -401,9 +385,13 @@
         isAutoRunning = true;
         stopRequested = false;
 
-        updateStartButtonState(true);
+        // Signalisiere allen LEA-Skripten (z.B. Safety Lock), dass eine Automatisierung läuft
+        if (window.LEA_CONFIG) {
+            window.LEA_CONFIG.isAutomationRunning = true;
+        }
 
-        showToast(`Starte Senden von ${count} Container(n) für ${targetItem.name}...`, 'lea-toast-start', 2500);
+        updateStartButtonState(true);
+        showToast(`Starte Senden von ${count} Container(n)...`, 'lea-toast-start', 2500);
 
         let sentCount = 0;
 
@@ -414,10 +402,21 @@
                     break;
                 }
 
-                showToast(`Sende Container ${i + 1} von ${count} (${targetItem.name})...`, 'lea-toast-step', 2000);
+                showToast(`Sende Container ${i + 1} von ${count}...`, 'lea-toast-step', 2000);
 
-                // 1. Erneutes Auslesen der Items, um frischen Button zu holen
-                const currentItems = extractAllianceOrderItems();
+                // 1. Warten, bis die Auftragszeilen im DOM gerendert sind (z. B. nach Rückkehr vom Transportdialog)
+                await waitForElementToAppear('.lao-container, [class*="lao-container"]', 4000, () => stopRequested);
+
+                // Versuche bis zu 5-mal mit 300ms Abstand, die Items auszulesen (falls Vue.js kurz zum Rendern braucht)
+                let currentItems = extractAllianceOrderItems();
+                let retryCount = 0;
+                while (currentItems.length === 0 && retryCount < 5) {
+                    if (stopRequested) break;
+                    await wait(300);
+                    retryCount++;
+                    currentItems = extractAllianceOrderItems();
+                }
+
                 const freshItem = currentItems.find(it => it.index === targetItem.index) || currentItems[0];
 
                 if (!freshItem || !freshItem.truckBtn) {
@@ -426,11 +425,11 @@
                     break;
                 }
 
-                // Klick auf den LKW-Button in der Zeile
+                // Klick auf den LKW-Button in der Zeile (öffnet Phase 1: Produktauswahl)
                 simulateClick(freshItem.truckBtn);
                 await wait(600);
 
-                // 2. Warten auf das Erscheinen des Transportdialogs (Frau-Icon / Assistent)
+                // 2. Warten auf das Erscheinen des Assistent-Buttons
                 const assistantAppeared = await waitForElementToAppear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 4000, () => stopRequested);
 
                 if (!assistantAppeared) {
@@ -439,14 +438,52 @@
                     break;
                 }
 
-                // 3. Klick auf den Transport-Assistenten (Frau-Icon / Autoselect)
-                const assistantBtn = document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
-                if (assistantBtn) {
-                    simulateClick(assistantBtn);
+                // --- PHASE 1: PRODUKTAUSWAHL (Waren wählen) ---
+                const assistantBtnPhase1 = document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
+                if (assistantBtnPhase1) {
+                    console.log('[LEA Allianz] Phase 1: Klicke Assistent (Waren automatisch wählen)...');
+                    simulateClick(assistantBtnPhase1);
+                    await wait(500);
+                }
+
+                // Dynamisch warten, bis der "Weiter"-Button aktiv/klickbar ist
+                let nextStepBtnPhase1 = document.querySelector(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR);
+                let waitP1Counter = 0;
+                while (waitP1Counter < 30 && (!nextStepBtnPhase1 || nextStepBtnPhase1.disabled || nextStepBtnPhase1.classList.contains('lea-btn-disabled'))) {
+                    if (stopRequested) break;
+                    await wait(100);
+                    waitP1Counter++;
+                    nextStepBtnPhase1 = document.querySelector(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR);
+                }
+
+                if (nextStepBtnPhase1 && !nextStepBtnPhase1.disabled) {
+                    console.log('[LEA Allianz] Phase 1: Klicke Weiter (zur Fahrzeugauswahl)...');
+                    simulateClick(nextStepBtnPhase1);
                     await wait(800);
                 }
 
-                // 4. Lieferzeit prüfen
+                // --- PHASE 2: FAHRZEUGAUSWAHL (LKWs wählen) ---
+                // Warten bis der Assistenten-Button in Phase 2 klickbar ist
+                await waitForElementToAppear(LEA_CONFIG.ASSISTANT_BTN_SELECTOR, 4000, () => stopRequested);
+
+                const assistantBtnPhase2 = document.querySelector(LEA_CONFIG.ASSISTANT_BTN_SELECTOR);
+                if (assistantBtnPhase2) {
+                    console.log('[LEA Allianz] Phase 2: Klicke Assistent (Fahrzeuge automatisch wählen)...');
+                    simulateClick(assistantBtnPhase2);
+                    await wait(500);
+                }
+
+                // Dynamisch warten, bis der "Starten"-Button aktiviert wird (Safety Lock entsperrt)
+                let finalStartBtn = document.querySelector(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR);
+                let waitP2Counter = 0;
+                while (waitP2Counter < 35 && (!finalStartBtn || finalStartBtn.disabled || finalStartBtn.classList.contains('lea-btn-disabled'))) {
+                    if (stopRequested) break;
+                    await wait(100);
+                    waitP2Counter++;
+                    finalStartBtn = document.querySelector(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR);
+                }
+
+                // Lieferzeit prüfen
                 const deliveryInfo = getDeliveryTimeSeconds();
                 const maxAllowedMinutes = LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes || 15;
 
@@ -457,22 +494,20 @@
                     break;
                 }
 
-                // 5. Klick auf "Weiter" / "Starten"
-                const nextStepBtn = document.querySelector(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR);
-
-                if (!nextStepBtn || nextStepBtn.disabled) {
-                    console.warn('[LEA Allianz] Weiter-Button ist nicht klickbar oder keine LKWs verfügbar.');
+                if (!finalStartBtn || finalStartBtn.disabled || finalStartBtn.classList.contains('lea-btn-disabled')) {
+                    console.warn('[LEA Allianz] Starten-Button ist nicht klickbar oder keine LKWs verfügbar.');
                     showToast('⚠️ Keine Fahrzeuge verfügbar oder Button gesperrt.', 'lea-toast-warn', 3000);
                     await goBack();
                     break;
                 }
 
-                simulateClick(nextStepBtn);
+                console.log('[LEA Allianz] Phase 2: Klicke Starten...');
+                simulateClick(finalStartBtn);
                 await wait(1000);
 
                 // Warten bis der Transportdialog verschwunden ist
                 await waitForElementToDisappear(LEA_CONFIG.NEXT_STEP_BTN_SELECTOR, 3500, () => stopRequested);
-                await wait(600);
+                await wait(800);
 
                 sentCount++;
             }
@@ -489,6 +524,9 @@
             }
         } finally {
             isAutoRunning = false;
+            if (window.LEA_CONFIG) {
+                window.LEA_CONFIG.isAutomationRunning = false;
+            }
             updateStartButtonState(false);
         }
     }
@@ -502,7 +540,7 @@
         if (btn) {
             const inner = btn.querySelector('div');
             if (inner) {
-                inner.innerHTML = running ? 'STOP' : 'Allianzorder';
+                inner.textContent = running ? 'STOP' : 'Allianz-\nOrder';
             }
             if (running) {
                 btn.classList.add('lea-btn-running');
