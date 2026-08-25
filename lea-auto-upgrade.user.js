@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.12
+// @version      1.1.13
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -156,6 +156,7 @@
 
     function findExpandButton() {
         const expandBtns = Array.from(document.querySelectorAll('button.variant--normal')).filter(btn => {
+            if (btn.closest('.bottom-navigation')) return false;
             const txt = btn.querySelector('.text-font-dark');
             if (!txt || btn.getAttribute('disabled') !== null) return false;
             const textContent = txt.textContent.toLowerCase();
@@ -166,16 +167,26 @@
         const parkingImgs = document.querySelectorAll('button:not([disabled]) img[data-key*="parking"], button:not([disabled]) img[src*="parking"]');
         for (const img of parkingImgs) {
             const btn = img.closest('button');
+            if (btn && btn.closest('.bottom-navigation')) continue;
             if (btn && btn.getAttribute('disabled') === null && btn.getBoundingClientRect().width > 0) {
                 return btn;
             }
         }
 
         const storageImgs = document.querySelectorAll('button:not([disabled]) img[src*="icon_improve_storage"]');
-        if (storageImgs.length > 0) return storageImgs[0].closest('button');
+        for (const img of storageImgs) {
+            const btn = img.closest('button');
+            if (btn && btn.closest('.bottom-navigation')) continue;
+            if (btn && btn.getAttribute('disabled') === null && btn.getBoundingClientRect().width > 0) {
+                return btn;
+            }
+        }
 
         const unlockBtns = document.querySelectorAll('div[data-tutorial-id="factory-line-unlock"] button.variant--normal:not([disabled])');
-        if (unlockBtns.length > 0) return unlockBtns[0];
+        for (const btn of unlockBtns) {
+            if (btn.closest('.bottom-navigation')) continue;
+            return btn;
+        }
 
         return null;
     }
@@ -602,7 +613,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.1.12');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.13');
 
         injectScanButton();
 
