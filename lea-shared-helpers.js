@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.23
+// @version      1.0.24
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -311,8 +311,39 @@ function getVueInstance(el) {
     return null;
 }
 
-// Liest exakte ungerundete Waren-Bestände aus dem Pinia ORM Storage (ormStorageElement)
-function getExactResourceAmountFromOrm(roundedAmount) {
+// Ermittelt die ID des aktuell geöffneten Gebäudelagers (ownerId)
+function getCurrentBuildingStorageId(el) {
+    try {
+        let vm = getVueInstance(el || document.querySelector('[data-tutorial-id="transport-requested-resources"]') || document.body);
+        for (let depth = 0; depth < 10 && vm; depth++) {
+            const s = vm.setupState;
+            if (s) {
+                const bId = s.buildingId || s.buildingStorageId || s.storageId || s.building?.id || s.building?.storageId || s.buildingStorage?.id || s.building?.buildingStorageId;
+                if (bId !== undefined && bId !== null) return String(bId);
+            }
+            const p = vm.props;
+            if (p) {
+                const bId = p.buildingId || p.buildingStorageId || p.storageId || p.building?.id || p.building?.storageId || p.buildingStorage?.id;
+                if (bId !== undefined && bId !== null) return String(bId);
+            }
+            vm = vm.parent;
+        }
+
+        const appEl = document.querySelector('#app') || document.querySelector('[data-v-app]') || document.body;
+        const pinia = appEl?.__vue_app__?.config?.globalProperties?.$pinia;
+        if (pinia && pinia._s) {
+            const uiState = pinia._s.get('uiState')?.$state;
+            if (uiState) {
+                const bId = uiState.selectedBuildingId || uiState.buildingId || uiState.currentBuildingId;
+                if (bId !== undefined && bId !== null) return String(bId);
+            }
+        }
+    } catch (e) {}
+    return null;
+}
+
+// Liest exakte ungerundete Waren-Bestände aus dem Pinia ORM Storage (ormStorageElement) des AKTUELLEN Gebäudes
+function getExactResourceAmountFromOrm(roundedAmount, element = null) {
     if (roundedAmount === null || roundedAmount === undefined || isNaN(roundedAmount)) return null;
     try {
         const appEl = document.querySelector('#app') || document.querySelector('[data-v-app]') || document.body;
@@ -322,15 +353,21 @@ function getExactResourceAmountFromOrm(roundedAmount) {
         const storageElements = pinia._s.get('ormStorageElement')?.$state?.data;
         if (!storageElements) return null;
 
+        const currentOwnerId = getCurrentBuildingStorageId(element);
         let bestMatch = null;
         let minDiff = Infinity;
 
         for (const [id, item] of Object.entries(storageElements)) {
             if (item.ownerType === 'ormBuildingStorage') {
+                // Wenn wir die ownerId des geöffneten Gebäudes ermitteln konnten, filtriere strikt nach diesem Gebäude!
+                if (currentOwnerId && String(item.ownerId) !== String(currentOwnerId)) {
+                    continue;
+                }
+
                 const amount = Number(item.amount);
                 const diff = Math.abs(amount - roundedAmount);
 
-                // Wenn der ORM-Betrag nahe an der gerundeten Zahl aus der UI liegt (z.B. 7901 vs 7900 -> diff=1)
+                // Wenn der ORM-Betrag nahe an der gerundeten Zahl aus der UI liegt (z.B. 4911 vs 4900 -> diff=11)
                 if (diff < minDiff && diff < 300) {
                     minDiff = diff;
                     bestMatch = amount;
@@ -383,9 +420,9 @@ function getNumberFromFlow(element, resourceName = null) {
         }
     }
 
-    // 2. Suche den exakten ungerundeten Datenbank-Wert aus Pinia ORM (ormStorageElement)
+    // 2. Suche den exakten ungerundeten Datenbank-Wert aus Pinia ORM (ormStorageElement) des AKTUELLEN Gebäudes
     if (rawAmount > 0) {
-        const exact = getExactResourceAmountFromOrm(rawAmount);
+        const exact = getExactResourceAmountFromOrm(rawAmount, element);
         if (exact !== null) {
             console.log(`[LEA Helpers] ORM Exakter Bestand für ${resourceName || 'Ware'}: ${exact} (gerundet war ${rawAmount})`);
             return exact;
