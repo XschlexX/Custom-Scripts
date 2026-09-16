@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.20
+// @version      1.1.21
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -128,13 +128,15 @@
             const flows = tile.querySelectorAll('number-flow-vue');
             const flowVal = flows.length > 0 ? getNumberFromFlow(flows[0]) : 0;
 
-            // Debug Vue Internal State
-            const tileVm = tile.__vueParentComponent || tile.__vnode;
-            const flowVm = (flows.length > 0) ? (flows[0].__vueParentComponent || flows[0].__vnode) : null;
-            console.log(`[LEA Debug] Sorte: ${name}`);
-            console.log(`  -> Flow Value (getNumberFromFlow):`, flowVal);
-            if (tileVm) console.log(`  -> Tile Vue Props/State:`, tileVm.props, tileVm.setupState, tileVm.ctx);
-            if (flowVm) console.log(`  -> Flow Vue Props:`, flowVm.props);
+            // Debug Vue Parent Tree
+            if (flows.length > 0) {
+                let vm = flows[0].__vueParentComponent || flows[0].__vnode?.component;
+                console.log(`[LEA Debug] Vue Parent Tree für ${name} (erhaltener Wert: ${flowVal}):`);
+                for (let d = 0; d < 5 && vm; d++) {
+                    console.log(`  -> Level ${d} (${vm.type?.name || vm.type?.__name || 'Comp'}):`, { props: vm.props, setupState: vm.setupState });
+                    vm = vm.parent;
+                }
+            }
 
             const currentAmount = flowVal;
             goodsInfo.push({ imgSrc, currentAmount, missingAmount: Math.max(0, targetPerType - currentAmount) });
@@ -512,7 +514,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.20');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.21');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {

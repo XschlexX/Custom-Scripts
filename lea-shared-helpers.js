@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.17
+// @version      1.0.18
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -251,24 +251,47 @@ function parseAmount(str) {
 function getNumberFromFlow(element) {
     if (!element) return 0;
 
-    // 1. Prioritize Vue 3 properties / VNode props for the exact unrounded value
-    const vueKeys = ['__vueParentComponent', '__vnode'];
-    for (const key of vueKeys) {
-        if (element[key]) {
-            const vm = element[key];
-            const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value ?? vm?.props?.value;
-            if (val !== undefined && val !== null && !isNaN(Number(val))) {
-                return Math.abs(Math.round(Number(val)));
+    // 1. Traverse Vue 3 component tree (current component and parent components up to 5 levels)
+    // to find exact unrounded integer values from reactive state or props.
+    let vm = element.__vueParentComponent || element.__vnode?.component;
+    for (let depth = 0; depth < 5 && vm; depth++) {
+        const targets = [vm.setupState, vm.props, vm.ctx];
+        for (const t of targets) {
+            if (!t) continue;
+
+            // Check direct primitive properties
+            for (const key of ['amount', 'quantity', 'count', 'stock', 'current']) {
+                const val = t[key];
+                if (typeof val === 'number' && Number.isInteger(val) && val >= 0) {
+                    return val;
+                }
+                if (val && typeof val === 'object' && typeof val.value === 'number' && Number.isInteger(val.value) && val.value >= 0) {
+                    return val.value;
+                }
+            }
+
+            // Check nested resource / item objects
+            for (const objKey of ['resource', 'item', 'good', 'data', 'tile']) {
+                const obj = t[objKey];
+                if (obj && typeof obj === 'object') {
+                    for (const key of ['amount', 'quantity', 'count', 'stock', 'current', 'value']) {
+                        const val = obj[key];
+                        if (typeof val === 'number' && Number.isInteger(val) && val >= 0) {
+                            return val;
+                        }
+                    }
+                }
             }
         }
+        vm = vm.parent;
     }
 
-    const otherKey = Object.keys(element).find(k => k.startsWith('__vue'));
-    if (otherKey) {
-        const vm = element[otherKey];
+    // Direct Vue props fallback if present
+    vm = element.__vueParentComponent || element.__vnode?.component;
+    if (vm) {
         const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value;
-        if (val !== undefined && val !== null && !isNaN(Number(val))) {
-            return Math.abs(Math.round(Number(val)));
+        if (val !== undefined && val !== null && !isNaN(Number(val)) && typeof val === 'number' && Number.isInteger(val)) {
+            return Math.abs(val);
         }
     }
 
