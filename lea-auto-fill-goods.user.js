@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.18
+// @version      1.1.19
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -53,8 +53,7 @@
         
         // Fallback: Textinhalt direkt bereinigen
         const text = (inputContainer.textContent || '').trim();
-        const cleanText = text.replace(/[.,\s]/g, '');
-        return parseInt(cleanText) || 0;
+        return parseAmount(text);
     }
 
     // Helper: Blurt das Eingabefeld und das aktive Element, um Änderungen zu bestätigen (commit)
@@ -77,12 +76,16 @@
         console.log("[LEA Auto Fill] Start...");
 
         // 1. Kapazität lesen (auf der Übersichtsseite)
-        const capacityHeader = document.querySelector('h2.text-h2');
-        if (!capacityHeader || !capacityHeader.textContent.includes('Kapazität:')) {
+        const capacityHeader = Array.from(document.querySelectorAll('h2, .text-h2')).find(el => el.textContent.includes('Kapazität:'));
+        if (!capacityHeader) {
             console.error("[LEA Auto Fill] Kapazität nicht gefunden auf der Übersichtsseite.");
             return;
         }
-        const totalCapacity = parseAmount(capacityHeader.textContent.replace('Kapazität:', '').trim());
+        let capText = capacityHeader.textContent.split('Kapazität:')[1] || '';
+        if (capText.includes('/')) {
+            capText = capText.split('/')[1]; // Nimm den Teil nach dem Slash (Gesamtkapazität)
+        }
+        const totalCapacity = parseAmount(capText.trim());
         console.log("[LEA Auto Fill] Gesamtkapazität:", totalCapacity);
 
         // 2. "Intern anfordern" klicken BEVOR die Waren gelesen werden
@@ -498,7 +501,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.18');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.19');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {

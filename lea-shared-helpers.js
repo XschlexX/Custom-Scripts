@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.16
+// @version      1.0.17
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -203,10 +203,13 @@ function showToast(msg, toastId = 'lea-toast', duration = 2000) {
     }, duration);
 }
 
-// Formatiert Textmengen (z.B. "1.5K", "3M") in Ganzzahlen
+// Formatiert Textmengen (z.B. "1.5K", "3M", "4.000") in Ganzzahlen
 function parseAmount(str) {
+    if (str === null || str === undefined) return 0;
+    if (typeof str === 'number') return Math.floor(str);
+    str = String(str).toUpperCase().trim();
     if (!str) return 0;
-    str = str.toUpperCase().trim();
+
     let multiplier = 1;
     if (str.endsWith('K')) {
         multiplier = 1000;
@@ -214,9 +217,33 @@ function parseAmount(str) {
     } else if (str.endsWith('M')) {
         multiplier = 1000000;
         str = str.slice(0, -1);
+    } else if (str.endsWith('B')) {
+        multiplier = 1000000000;
+        str = str.slice(0, -1);
     }
-    str = str.replace(',', '.');
-    const num = parseFloat(str);
+
+    const match = str.match(/[\d.,]+/);
+    if (!match) return 0;
+    let numStr = match[0];
+
+    if (multiplier !== 1) {
+        // Bei K/M/B ist Komma oder Punkt der Dezimaltrenner (z.B. 3,8K oder 3.8K -> 3.8)
+        numStr = numStr.replace(',', '.');
+    } else {
+        // Ohne K/M/B: Tausendertrennzeichen im deutschen Format behandeln
+        if (numStr.includes('.') && numStr.includes(',')) {
+            // z.B. "1.234,56" -> Punkte entfernen, Komma zu Punkt
+            numStr = numStr.replace(/\./g, '').replace(',', '.');
+        } else if (numStr.includes('.')) {
+            // Tausendertrennzeichen ohne K/M (z.B. "4.000", "12.500", "1.500.000")
+            numStr = numStr.replace(/\./g, '');
+        } else if (numStr.includes(',')) {
+            // Dezimaltrenner z.B. "4,5"
+            numStr = numStr.replace(',', '.');
+        }
+    }
+
+    const num = parseFloat(numStr);
     return isNaN(num) ? 0 : Math.floor(num * multiplier);
 }
 
