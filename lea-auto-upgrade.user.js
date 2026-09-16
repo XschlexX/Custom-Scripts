@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.13
+// @version      1.1.14
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -81,7 +81,22 @@
     // -----------------------------------------------------------------------
 
     function isUpgradeOverviewOpen() {
-        return !!document.querySelector('a[href="#/buildings/upgrades"].router-link-exact-active');
+        // 1. Titel in der Header-Leiste prüfen ("Upgrade-Übersicht")
+        const titleText = document.querySelector('#headerBar .text-h1, .text-h1')?.textContent || '';
+        if (titleText.includes('Upgrade-Übersicht')) return true;
+
+        // 2. Aktiven Tab in der untersten Navigationsleiste prüfen (über aria-label/active)
+        const activeUpgradeTab = document.querySelector('.bottom-navigation button[aria-label="Gehe zu Upgrades"][active="true"], .bottom-navigation button[aria-label="Gehe zu Upgrades"][aria-current="page"]');
+        if (activeUpgradeTab) return true;
+
+        // 3. Aktives Icon in der Bottom-Nav prüfen
+        const activeNavIcon = document.querySelector('.bottom-navigation button[active="true"] img[src*="improvement_arrow"]');
+        if (activeNavIcon) return true;
+
+        // 4. Fallback auf Router-Link
+        if (document.querySelector('a[href*="upgrades"].router-link-active, a[href*="upgrades"].router-link-exact-active')) return true;
+
+        return false;
     }
 
 
@@ -573,9 +588,9 @@
         }
         if (document.getElementById(INJECT_BTN_ID)) return;
 
-        const headerContainer = document.querySelector('img[src*="improvement_arrow"]')
-            ?.closest('.flex.flex-nowrap.items-center')
-            ?.querySelector('.gap-md.flex');
+        const headerContainer = document.querySelector('#headerBar .gap-md') ||
+            document.querySelector('img[src*="improvement_arrow"]')?.closest('.flex.flex-nowrap.items-center')?.querySelector('.gap-md') ||
+            document.querySelector('.text-h1')?.closest('.flex.items-center')?.querySelector('.gap-md');
         if (!headerContainer) return;
 
         const blueprintBtn = headerContainer.querySelector('button');
@@ -613,7 +628,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.1.13');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.14');
 
         injectScanButton();
 
