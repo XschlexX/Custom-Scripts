@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.22
+// @version      1.0.23
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -311,156 +311,88 @@ function getVueInstance(el) {
     return null;
 }
 
-// Hilfsfunktion: Versucht Pinia Stores zu finden
-function getPiniaStores(el) {
+// Liest exakte ungerundete Waren-Bestände aus dem Pinia ORM Storage (ormStorageElement)
+function getExactResourceAmountFromOrm(roundedAmount) {
+    if (roundedAmount === null || roundedAmount === undefined || isNaN(roundedAmount)) return null;
     try {
         const appEl = document.querySelector('#app') || document.querySelector('[data-v-app]') || document.body;
-        let pinia = appEl?.__vue_app__?.config?.globalProperties?.$pinia;
-        if (!pinia) {
-            const vm = getVueInstance(el || document.body);
-            pinia = vm?.appContext?.config?.globalProperties?.$pinia;
-            if (!pinia && vm?.appContext?.provides) {
-                const provides = vm.appContext.provides;
-                const symbols = Object.getOwnPropertySymbols(provides);
-                for (const sym of symbols) {
-                    if (provides[sym]?._s) {
-                        pinia = provides[sym];
-                        break;
-                    }
-                }
-            }
-        }
-        if (pinia && pinia._s) return pinia._s;
-    } catch (e) {}
-    return null;
-}
+        const pinia = appEl?.__vue_app__?.config?.globalProperties?.$pinia;
+        if (!pinia || !pinia._s) return null;
 
-// Durchsucht ein Objekt rekursiv nach einer genauen Ressourcen-Menge (z.B. res_pear_pie)
-function findResourceInObject(obj, targetKey, maxDepth = 4, visited = new WeakSet()) {
-    if (!obj || typeof obj !== 'object' || maxDepth <= 0 || visited.has(obj)) return null;
-    visited.add(obj);
+        const storageElements = pinia._s.get('ormStorageElement')?.$state?.data;
+        if (!storageElements) return null;
 
-    try {
-        // Prüfe, ob dieses Objekt selbst ein Ressourcen-Eintrag ist (z.B. { id: 'res_pear_pie', amount: 7909 })
-        const keys = [...new Set([...Object.keys(obj), ...Object.getOwnPropertyNames(obj)])];
-        let hasMatch = false;
-        for (const k of keys) {
-            const val = obj[k];
-            if (typeof val === 'string' && targetKey && val.toLowerCase().includes(targetKey.toLowerCase())) {
-                hasMatch = true;
-                break;
-            }
-        }
+        let bestMatch = null;
+        let minDiff = Infinity;
 
-        if (hasMatch) {
-            for (const k of keys) {
-                const lowerK = k.toLowerCase();
-                if (lowerK.includes('amount') || lowerK.includes('count') || lowerK.includes('stock') ||
-                    lowerK.includes('quantity') || lowerK.includes('stored') || lowerK.includes('value')) {
-                    const val = obj[k];
-                    const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val;
-                    if (typeof numVal === 'number' && !isNaN(numVal) && numVal >= 0) {
-                        return Math.floor(numVal);
-                    }
+        for (const [id, item] of Object.entries(storageElements)) {
+            if (item.ownerType === 'ormBuildingStorage') {
+                const amount = Number(item.amount);
+                const diff = Math.abs(amount - roundedAmount);
+
+                // Wenn der ORM-Betrag nahe an der gerundeten Zahl aus der UI liegt (z.B. 7901 vs 7900 -> diff=1)
+                if (diff < minDiff && diff < 300) {
+                    minDiff = diff;
+                    bestMatch = amount;
                 }
             }
         }
 
-        // Rekursiver Durchlauf
-        for (const k of keys) {
-            if (['parent', 'vnode', 'subTree', 'el', 'appContext', 'provides', 'render', 'setup'].includes(k)) continue;
-            const child = obj[k];
-            if (child && typeof child === 'object') {
-                const found = findResourceInObject(child, targetKey, maxDepth - 1, visited);
-                if (found !== null) return found;
-            }
+        if (bestMatch !== null) {
+            return bestMatch;
         }
-    } catch (e) {}
-    return null;
-}
-
-// Sucht die exakte ungerundete Menge einer Ware aus Pinia Stores oder Vue Components
-function getExactResourceAmount(resourceName, element) {
-    if (!resourceName) return null;
-    const cleanKey = resourceName.split('-')[0]; // z.B. res_pear_pie aus res_pear_pie-Ckxo-JoO
-
-    // 1. In Pinia Stores suchen
-    const stores = getPiniaStores(element);
-    if (stores && typeof stores.values === 'function') {
-        for (const store of stores.values()) {
-            if (store && store.$state) {
-                const found = findResourceInObject(store.$state, cleanKey);
-                if (found !== null) {
-                    console.log(`[LEA Helpers] Exakter Pinia-Wert für ${cleanKey} gefunden: ${found}`);
-                    return found;
-                }
-            }
-        }
+    } catch (e) {
+        console.warn('[LEA Helpers] Fehler bei getExactResourceAmountFromOrm:', e);
     }
-
-    // 2. Im Vue Component-Tree suchen (ab 1 Ebene über number-flow-vue)
-    let vm = getVueInstance(element);
-    if (vm) {
-        // Falls wir auf number-flow-vue stehen, steige 1 Ebene höher zur Kachel/Ansicht
-        if (vm.type?.name === 'NumberFlow' || vm.type?.__name === 'NumberFlow') {
-            vm = vm.parent;
-        }
-        for (let d = 0; d < 6 && vm; d++) {
-            if (vm.setupState) {
-                const found = findResourceInObject(vm.setupState, cleanKey);
-                if (found !== null) {
-                    console.log(`[LEA Helpers] Exakter Vue-State-Wert für ${cleanKey} (Level ${d}) gefunden: ${found}`);
-                    return found;
-                }
-            }
-            vm = vm.parent;
-        }
-    }
-
     return null;
 }
 
-// Liest den Zahlenwert aus einem number-flow-vue Element aus (mit exaktem Fallback)
+// Liest den Zahlenwert aus einem number-flow-vue Element aus (mit exaktem ORM Fallback)
 function getNumberFromFlow(element, resourceName = null) {
     if (!element) return 0;
 
-    // 0. Versuche zuerst die exakte ungerundete Zahl aus Pinia/Vue State auszulesen
-    if (resourceName) {
-        const exact = getExactResourceAmount(resourceName, element);
-        if (exact !== null) return exact;
-    }
+    // 1. Liefere gerundeten Basistempo-Wert aus aria-label oder Shadow DOM
+    let rawAmount = 0;
 
-    // 1. Fallback: aria-label
     const ariaLabel = element.getAttribute('aria-label');
-    if (ariaLabel && ariaLabel.trim() !== '') return parseAmount(ariaLabel);
-
-    // 2. Fallback: Shadow DOM
-    const shadowRoot = element.shadowRoot;
-    if (shadowRoot) {
-        const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
-        let intStr = '';
-        intDigits.forEach(d => {
-            const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
-            if (m) intStr += m[1];
-        });
-
-        if (intStr) {
-            const fracDigits = shadowRoot.querySelectorAll('[part~="fraction-digit"]');
-            let fracStr = '';
-            fracDigits.forEach(d => {
+    if (ariaLabel && ariaLabel.trim() !== '') {
+        rawAmount = parseAmount(ariaLabel);
+    } else {
+        const shadowRoot = element.shadowRoot;
+        if (shadowRoot) {
+            const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
+            let intStr = '';
+            intDigits.forEach(d => {
                 const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
-                if (m) fracStr += m[1];
+                if (m) intStr += m[1];
             });
 
-            const suffixEl = shadowRoot.querySelector('[part~="suffix"]');
-            const suffix = suffixEl ? suffixEl.textContent.trim() : '';
+            if (intStr) {
+                const fracDigits = shadowRoot.querySelectorAll('[part~="fraction-digit"]');
+                let fracStr = '';
+                fracDigits.forEach(d => {
+                    const m = (d.getAttribute('style') || '').match(/--current:\s*(\d+)/);
+                    if (m) fracStr += m[1];
+                });
 
-            const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
-            return parseAmount(numStr);
+                const suffixEl = shadowRoot.querySelector('[part~="suffix"]');
+                const suffix = suffixEl ? suffixEl.textContent.trim() : '';
+                const numStr = fracStr ? `${intStr}.${fracStr}${suffix}` : `${intStr}${suffix}`;
+                rawAmount = parseAmount(numStr);
+            }
         }
     }
 
-    return 0;
+    // 2. Suche den exakten ungerundeten Datenbank-Wert aus Pinia ORM (ormStorageElement)
+    if (rawAmount > 0) {
+        const exact = getExactResourceAmountFromOrm(rawAmount);
+        if (exact !== null) {
+            console.log(`[LEA Helpers] ORM Exakter Bestand für ${resourceName || 'Ware'}: ${exact} (gerundet war ${rawAmount})`);
+            return exact;
+        }
+    }
+
+    return rawAmount;
 }
 
 
