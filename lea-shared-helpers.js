@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.19
+// @version      1.0.20
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -247,6 +247,25 @@ function parseAmount(str) {
     return isNaN(num) ? 0 : Math.floor(num * multiplier);
 }
 
+// Hilfsfunktion: Ermittelt die Vue 3 Component Instance eines Elements oder seiner übergeordneten DOM-Knoten
+function getVueInstance(el) {
+    if (!el) return null;
+    let curr = el;
+    for (let depth = 0; depth < 6 && curr; depth++) {
+        const keys = Object.keys(curr).filter(k => k.startsWith('__v') || k.startsWith('_v'));
+        for (const k of keys) {
+            try {
+                const val = curr[k];
+                if (!val) continue;
+                if (val.component) return val.component;
+                if (val.props || val.setupState || val.ctx) return val;
+            } catch (e) {}
+        }
+        curr = curr.parentElement;
+    }
+    return null;
+}
+
 // Hilfsfunktion: Durchsucht ein Objekt rekursiv nach exakten Mengen-Zahlen in Vue Component States
 function findVueInteger(obj, maxDepth = 3) {
     if (!obj || typeof obj !== 'object' || maxDepth <= 0) return null;
@@ -284,7 +303,7 @@ function getNumberFromFlow(element) {
 
     // 1. Traverse Vue 3 component tree (current component and parent components up to 5 levels)
     // to find exact unrounded integer values from reactive state or props.
-    let vm = element.__vueParentComponent || element.__vnode?.component;
+    let vm = getVueInstance(element);
     for (let depth = 0; depth < 5 && vm; depth++) {
         const foundSetup = findVueInteger(vm.setupState);
         if (foundSetup !== null) return foundSetup;

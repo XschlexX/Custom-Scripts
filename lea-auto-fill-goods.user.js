@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.22
+// @version      1.1.23
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -130,7 +130,7 @@
 
             // Debug Vue Parent Tree (stringified for plain text logs)
             if (flows.length > 0) {
-                let vm = flows[0].__vueParentComponent || flows[0].__vnode?.component;
+                let vm = getVueInstance(flows[0]) || getVueInstance(tile);
                 console.log(`[LEA Debug] Vue Parent Tree für ${name} (erhaltener Wert: ${flowVal}):`);
                 for (let d = 0; d < 5 && vm; d++) {
                     const compName = vm.type?.name || vm.type?.__name || 'Comp';
@@ -517,7 +517,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.22');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.23');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
