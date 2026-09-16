@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.20
+// @version      1.0.22
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -247,49 +247,131 @@ function parseAmount(str) {
     return isNaN(num) ? 0 : Math.floor(num * multiplier);
 }
 
+// Sichere JSON-Stringifizierung zur Vermeidung von Zirkulär- und Proxy-Fehlern
+function safeInspect(obj, maxDepth = 2) {
+    const visited = new WeakSet();
+    function helper(val, depth) {
+        if (val === null || val === undefined) return String(val);
+        if (typeof val === 'function') return '[Fn]';
+        if (typeof val !== 'object') return val;
+        if (val instanceof HTMLElement) return `[HTML: ${val.tagName}.${val.className}]`;
+        if (visited.has(val)) return '[Circular]';
+        if (depth <= 0) return '[Object]';
+        visited.add(val);
+
+        try {
+            if (Array.isArray(val)) {
+                return val.slice(0, 10).map(v => helper(v, depth - 1));
+            }
+            const res = {};
+            const keys = [...new Set([...Object.keys(val), ...Object.getOwnPropertyNames(val)])];
+            for (const k of keys.slice(0, 20)) {
+                if (k.startsWith('_') || k === 'parent' || k === 'vnode' || k === 'el') continue;
+                try {
+                    res[k] = helper(val[k], depth - 1);
+                } catch (e) {
+                    res[k] = '[Err]';
+                }
+            }
+            return res;
+        } catch (e) {
+            return '[Uninspectable]';
+        }
+    }
+    try {
+        return JSON.stringify(helper(obj, maxDepth));
+    } catch (e) {
+        return '[Stringify Failed]';
+    }
+}
+
 // Hilfsfunktion: Ermittelt die Vue 3 Component Instance eines Elements oder seiner übergeordneten DOM-Knoten
 function getVueInstance(el) {
     if (!el) return null;
     let curr = el;
-    for (let depth = 0; depth < 6 && curr; depth++) {
-        const keys = Object.keys(curr).filter(k => k.startsWith('__v') || k.startsWith('_v'));
-        for (const k of keys) {
-            try {
-                const val = curr[k];
-                if (!val) continue;
-                if (val.component) return val.component;
-                if (val.props || val.setupState || val.ctx) return val;
-            } catch (e) {}
-        }
+    for (let depth = 0; depth < 8 && curr; depth++) {
+        if (curr.__vueParentComponent) return curr.__vueParentComponent;
+        if (curr.__vnode?.component) return curr.__vnode.component;
+        if (curr._vnode?.component) return curr._vnode.component;
+        if (curr.__vue_app__) return curr.__vue_app__;
+
+        try {
+            const propNames = Object.getOwnPropertyNames(curr);
+            for (const k of propNames) {
+                if (k.startsWith('__v') || k.startsWith('_v')) {
+                    const val = curr[k];
+                    if (!val) continue;
+                    if (val.component) return val.component;
+                    if (val.props || val.setupState || val.ctx) return val;
+                }
+            }
+        } catch (e) {}
         curr = curr.parentElement;
     }
     return null;
 }
 
-// Hilfsfunktion: Durchsucht ein Objekt rekursiv nach exakten Mengen-Zahlen in Vue Component States
-function findVueInteger(obj, maxDepth = 3) {
-    if (!obj || typeof obj !== 'object' || maxDepth <= 0) return null;
+// Hilfsfunktion: Versucht Pinia Stores zu finden
+function getPiniaStores(el) {
     try {
-        const keys = Object.keys(obj);
-        for (const key of keys) {
-            if (['parent', 'vnode', 'subTree', 'el', 'appContext', 'provides', 'components', 'directives'].includes(key)) continue;
-            const val = obj[key];
-            const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val;
-
-            if (typeof numVal === 'number' && Number.isInteger(numVal) && numVal >= 0) {
-                const lowerKey = key.toLowerCase();
-                if (lowerKey.includes('amount') || lowerKey.includes('stock') || lowerKey.includes('count') ||
-                    lowerKey.includes('quantity') || lowerKey.includes('stored') || lowerKey.includes('value') ||
-                    lowerKey.includes('total') || lowerKey.includes('num')) {
-                    return numVal;
+        const appEl = document.querySelector('#app') || document.querySelector('[data-v-app]') || document.body;
+        let pinia = appEl?.__vue_app__?.config?.globalProperties?.$pinia;
+        if (!pinia) {
+            const vm = getVueInstance(el || document.body);
+            pinia = vm?.appContext?.config?.globalProperties?.$pinia;
+            if (!pinia && vm?.appContext?.provides) {
+                const provides = vm.appContext.provides;
+                const symbols = Object.getOwnPropertySymbols(provides);
+                for (const sym of symbols) {
+                    if (provides[sym]?._s) {
+                        pinia = provides[sym];
+                        break;
+                    }
                 }
             }
         }
-        for (const key of keys) {
-            if (['parent', 'vnode', 'subTree', 'el', 'appContext', 'provides', 'components', 'directives'].includes(key)) continue;
-            const child = obj[key];
-            if (child && typeof child === 'object' && !Array.isArray(child)) {
-                const found = findVueInteger(child, maxDepth - 1);
+        if (pinia && pinia._s) return pinia._s;
+    } catch (e) {}
+    return null;
+}
+
+// Durchsucht ein Objekt rekursiv nach einer genauen Ressourcen-Menge (z.B. res_pear_pie)
+function findResourceInObject(obj, targetKey, maxDepth = 4, visited = new WeakSet()) {
+    if (!obj || typeof obj !== 'object' || maxDepth <= 0 || visited.has(obj)) return null;
+    visited.add(obj);
+
+    try {
+        // Prüfe, ob dieses Objekt selbst ein Ressourcen-Eintrag ist (z.B. { id: 'res_pear_pie', amount: 7909 })
+        const keys = [...new Set([...Object.keys(obj), ...Object.getOwnPropertyNames(obj)])];
+        let hasMatch = false;
+        for (const k of keys) {
+            const val = obj[k];
+            if (typeof val === 'string' && targetKey && val.toLowerCase().includes(targetKey.toLowerCase())) {
+                hasMatch = true;
+                break;
+            }
+        }
+
+        if (hasMatch) {
+            for (const k of keys) {
+                const lowerK = k.toLowerCase();
+                if (lowerK.includes('amount') || lowerK.includes('count') || lowerK.includes('stock') ||
+                    lowerK.includes('quantity') || lowerK.includes('stored') || lowerK.includes('value')) {
+                    const val = obj[k];
+                    const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val;
+                    if (typeof numVal === 'number' && !isNaN(numVal) && numVal >= 0) {
+                        return Math.floor(numVal);
+                    }
+                }
+            }
+        }
+
+        // Rekursiver Durchlauf
+        for (const k of keys) {
+            if (['parent', 'vnode', 'subTree', 'el', 'appContext', 'provides', 'render', 'setup'].includes(k)) continue;
+            const child = obj[k];
+            if (child && typeof child === 'object') {
+                const found = findResourceInObject(child, targetKey, maxDepth - 1, visited);
                 if (found !== null) return found;
             }
         }
@@ -297,40 +379,62 @@ function findVueInteger(obj, maxDepth = 3) {
     return null;
 }
 
-// Liest den Zahlenwert aus einem number-flow-vue Element aus
-function getNumberFromFlow(element) {
-    if (!element) return 0;
+// Sucht die exakte ungerundete Menge einer Ware aus Pinia Stores oder Vue Components
+function getExactResourceAmount(resourceName, element) {
+    if (!resourceName) return null;
+    const cleanKey = resourceName.split('-')[0]; // z.B. res_pear_pie aus res_pear_pie-Ckxo-JoO
 
-    // 1. Traverse Vue 3 component tree (current component and parent components up to 5 levels)
-    // to find exact unrounded integer values from reactive state or props.
-    let vm = getVueInstance(element);
-    for (let depth = 0; depth < 5 && vm; depth++) {
-        const foundSetup = findVueInteger(vm.setupState);
-        if (foundSetup !== null) return foundSetup;
-
-        const foundProps = findVueInteger(vm.props);
-        if (foundProps !== null) return foundProps;
-
-        const foundCtx = findVueInteger(vm.ctx);
-        if (foundCtx !== null) return foundCtx;
-
-        vm = vm.parent;
-    }
-
-    // Direct Vue props fallback if present
-    vm = element.__vueParentComponent || element.__vnode?.component;
-    if (vm) {
-        const val = vm?.props?.value ?? vm?.setupState?.value ?? vm?.ctx?.value;
-        if (val !== undefined && val !== null && !isNaN(Number(val)) && typeof val === 'number' && Number.isInteger(val)) {
-            return Math.abs(val);
+    // 1. In Pinia Stores suchen
+    const stores = getPiniaStores(element);
+    if (stores && typeof stores.values === 'function') {
+        for (const store of stores.values()) {
+            if (store && store.$state) {
+                const found = findResourceInObject(store.$state, cleanKey);
+                if (found !== null) {
+                    console.log(`[LEA Helpers] Exakter Pinia-Wert für ${cleanKey} gefunden: ${found}`);
+                    return found;
+                }
+            }
         }
     }
 
-    // 2. Fallback to aria-label
+    // 2. Im Vue Component-Tree suchen (ab 1 Ebene über number-flow-vue)
+    let vm = getVueInstance(element);
+    if (vm) {
+        // Falls wir auf number-flow-vue stehen, steige 1 Ebene höher zur Kachel/Ansicht
+        if (vm.type?.name === 'NumberFlow' || vm.type?.__name === 'NumberFlow') {
+            vm = vm.parent;
+        }
+        for (let d = 0; d < 6 && vm; d++) {
+            if (vm.setupState) {
+                const found = findResourceInObject(vm.setupState, cleanKey);
+                if (found !== null) {
+                    console.log(`[LEA Helpers] Exakter Vue-State-Wert für ${cleanKey} (Level ${d}) gefunden: ${found}`);
+                    return found;
+                }
+            }
+            vm = vm.parent;
+        }
+    }
+
+    return null;
+}
+
+// Liest den Zahlenwert aus einem number-flow-vue Element aus (mit exaktem Fallback)
+function getNumberFromFlow(element, resourceName = null) {
+    if (!element) return 0;
+
+    // 0. Versuche zuerst die exakte ungerundete Zahl aus Pinia/Vue State auszulesen
+    if (resourceName) {
+        const exact = getExactResourceAmount(resourceName, element);
+        if (exact !== null) return exact;
+    }
+
+    // 1. Fallback: aria-label
     const ariaLabel = element.getAttribute('aria-label');
     if (ariaLabel && ariaLabel.trim() !== '') return parseAmount(ariaLabel);
 
-    // 3. Fallback to Shadow DOM
+    // 2. Fallback: Shadow DOM
     const shadowRoot = element.shadowRoot;
     if (shadowRoot) {
         const intDigits = shadowRoot.querySelectorAll('[part~="integer-digit"]');
@@ -358,6 +462,7 @@ function getNumberFromFlow(element) {
 
     return 0;
 }
+
 
 // Simuliert die Texteingabe in ein Custom Vue-Eingabefeld (div mit tabindex="0")
 async function simulateTyping(element, text) {

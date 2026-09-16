@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.23
+// @version      1.1.25
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -126,16 +126,16 @@
             const imgSrc = imgEl.getAttribute('src');
             const name = imgSrc.split('/').pop().replace('.avif', '');
             const flows = tile.querySelectorAll('number-flow-vue');
-            const flowVal = flows.length > 0 ? getNumberFromFlow(flows[0]) : 0;
+            const flowVal = flows.length > 0 ? getNumberFromFlow(flows[0], name) : 0;
 
-            // Debug Vue Parent Tree (stringified for plain text logs)
+            // Debug Vue Parent Tree & Pinia (mit safeInspect)
             if (flows.length > 0) {
                 let vm = getVueInstance(flows[0]) || getVueInstance(tile);
                 console.log(`[LEA Debug] Vue Parent Tree für ${name} (erhaltener Wert: ${flowVal}):`);
                 for (let d = 0; d < 5 && vm; d++) {
                     const compName = vm.type?.name || vm.type?.__name || 'Comp';
-                    const propsJson = vm.props ? JSON.stringify(vm.props, (k,v) => typeof v === 'function' ? '[Fn]' : (v instanceof HTMLElement ? '[El]' : v)) : 'null';
-                    const stateJson = vm.setupState ? JSON.stringify(vm.setupState, (k,v) => typeof v === 'function' ? '[Fn]' : (v instanceof HTMLElement ? '[El]' : v)) : 'null';
+                    const propsJson = vm.props ? safeInspect(vm.props, 2) : 'null';
+                    const stateJson = vm.setupState ? safeInspect(vm.setupState, 2) : 'null';
                     console.log(`  -> Level ${d} (${compName}): props=${propsJson.slice(0, 300)} | state=${stateJson.slice(0, 300)}`);
                     vm = vm.parent;
                 }
@@ -517,7 +517,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.23');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.24');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {
