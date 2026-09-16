@@ -2,7 +2,7 @@
 // @name         LEA Auto Upgrade
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.15
+// @version      1.1.16
 // @match        https://game.logistics-empire.com/*
 // @description  Startet einen automatischen Durchlauf über alle Gebäude mit verfügbaren Upgrades und schließt diese ab.
 // @run-at       document-idle
@@ -81,18 +81,10 @@
     // -----------------------------------------------------------------------
 
     function isUpgradeOverviewOpen() {
-        // 1. Titel in der Header-Leiste prüfen ("Upgrade-Übersicht")
-        const titleText = document.querySelector('#headerBar .text-h1, .text-h1')?.textContent || '';
-        if (titleText.includes('Upgrade-Übersicht')) return true;
-
-        // 2. Aktiven Tab in der untersten Navigationsleiste prüfen (über aria-label="Gehe zu Upgrades")
-        const activeUpgradeTab = document.querySelector('.bottom-navigation button[aria-label="Gehe zu Upgrades"][active="true"], .bottom-navigation button[aria-label="Gehe zu Upgrades"][aria-current="page"]');
-        if (activeUpgradeTab) return true;
-
-        // 3. Fallback auf Router-Link
-        if (document.querySelector('a[href*="upgrades"].router-link-active, a[href*="upgrades"].router-link-exact-active')) return true;
-
-        return false;
+        const headerEl = document.getElementById('headerBar') || document.querySelector('.hud-window__page');
+        if (!headerEl) return false;
+        const titleText = headerEl.querySelector('.text-h1, h1')?.textContent || '';
+        return titleText.includes('Upgrade-Übersicht');
     }
 
 
@@ -624,7 +616,7 @@
     // INIT
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Auto Upgrade] Initialisiert v1.1.15');
+        console.log('[LEA Auto Upgrade] Initialisiert v1.1.16');
 
         injectScanButton();
 
