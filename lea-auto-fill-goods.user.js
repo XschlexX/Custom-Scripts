@@ -2,7 +2,7 @@
 // @name         LEA Auto Fill Goods
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.21
+// @version      1.1.22
 // @match        https://game.logistics-empire.com/*
 // @description  Füllt Waren im Lager gleichmäßig bis zur maximalen Kapazität auf.
 // @grant        none
@@ -128,12 +128,15 @@
             const flows = tile.querySelectorAll('number-flow-vue');
             const flowVal = flows.length > 0 ? getNumberFromFlow(flows[0]) : 0;
 
-            // Debug Vue Parent Tree
+            // Debug Vue Parent Tree (stringified for plain text logs)
             if (flows.length > 0) {
                 let vm = flows[0].__vueParentComponent || flows[0].__vnode?.component;
                 console.log(`[LEA Debug] Vue Parent Tree für ${name} (erhaltener Wert: ${flowVal}):`);
                 for (let d = 0; d < 5 && vm; d++) {
-                    console.log(`  -> Level ${d} (${vm.type?.name || vm.type?.__name || 'Comp'}):`, { props: vm.props, setupState: vm.setupState });
+                    const compName = vm.type?.name || vm.type?.__name || 'Comp';
+                    const propsJson = vm.props ? JSON.stringify(vm.props, (k,v) => typeof v === 'function' ? '[Fn]' : (v instanceof HTMLElement ? '[El]' : v)) : 'null';
+                    const stateJson = vm.setupState ? JSON.stringify(vm.setupState, (k,v) => typeof v === 'function' ? '[Fn]' : (v instanceof HTMLElement ? '[El]' : v)) : 'null';
+                    console.log(`  -> Level ${d} (${compName}): props=${propsJson.slice(0, 300)} | state=${stateJson.slice(0, 300)}`);
                     vm = vm.parent;
                 }
             }
@@ -514,7 +517,7 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEA Auto Fill] Initialisiert v1.1.21');
+        console.log('[LEA Auto Fill] Initialisiert v1.1.22');
 
         let isHandlingMutations = false;
         const observer = new MutationObserver(() => {

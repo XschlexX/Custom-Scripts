@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.18
+// @version      1.0.19
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -247,6 +247,37 @@ function parseAmount(str) {
     return isNaN(num) ? 0 : Math.floor(num * multiplier);
 }
 
+// Hilfsfunktion: Durchsucht ein Objekt rekursiv nach exakten Mengen-Zahlen in Vue Component States
+function findVueInteger(obj, maxDepth = 3) {
+    if (!obj || typeof obj !== 'object' || maxDepth <= 0) return null;
+    try {
+        const keys = Object.keys(obj);
+        for (const key of keys) {
+            if (['parent', 'vnode', 'subTree', 'el', 'appContext', 'provides', 'components', 'directives'].includes(key)) continue;
+            const val = obj[key];
+            const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val;
+
+            if (typeof numVal === 'number' && Number.isInteger(numVal) && numVal >= 0) {
+                const lowerKey = key.toLowerCase();
+                if (lowerKey.includes('amount') || lowerKey.includes('stock') || lowerKey.includes('count') ||
+                    lowerKey.includes('quantity') || lowerKey.includes('stored') || lowerKey.includes('value') ||
+                    lowerKey.includes('total') || lowerKey.includes('num')) {
+                    return numVal;
+                }
+            }
+        }
+        for (const key of keys) {
+            if (['parent', 'vnode', 'subTree', 'el', 'appContext', 'provides', 'components', 'directives'].includes(key)) continue;
+            const child = obj[key];
+            if (child && typeof child === 'object' && !Array.isArray(child)) {
+                const found = findVueInteger(child, maxDepth - 1);
+                if (found !== null) return found;
+            }
+        }
+    } catch (e) {}
+    return null;
+}
+
 // Liest den Zahlenwert aus einem number-flow-vue Element aus
 function getNumberFromFlow(element) {
     if (!element) return 0;
@@ -255,34 +286,15 @@ function getNumberFromFlow(element) {
     // to find exact unrounded integer values from reactive state or props.
     let vm = element.__vueParentComponent || element.__vnode?.component;
     for (let depth = 0; depth < 5 && vm; depth++) {
-        const targets = [vm.setupState, vm.props, vm.ctx];
-        for (const t of targets) {
-            if (!t) continue;
+        const foundSetup = findVueInteger(vm.setupState);
+        if (foundSetup !== null) return foundSetup;
 
-            // Check direct primitive properties
-            for (const key of ['amount', 'quantity', 'count', 'stock', 'current']) {
-                const val = t[key];
-                if (typeof val === 'number' && Number.isInteger(val) && val >= 0) {
-                    return val;
-                }
-                if (val && typeof val === 'object' && typeof val.value === 'number' && Number.isInteger(val.value) && val.value >= 0) {
-                    return val.value;
-                }
-            }
+        const foundProps = findVueInteger(vm.props);
+        if (foundProps !== null) return foundProps;
 
-            // Check nested resource / item objects
-            for (const objKey of ['resource', 'item', 'good', 'data', 'tile']) {
-                const obj = t[objKey];
-                if (obj && typeof obj === 'object') {
-                    for (const key of ['amount', 'quantity', 'count', 'stock', 'current', 'value']) {
-                        const val = obj[key];
-                        if (typeof val === 'number' && Number.isInteger(val) && val >= 0) {
-                            return val;
-                        }
-                    }
-                }
-            }
-        }
+        const foundCtx = findVueInteger(vm.ctx);
+        if (foundCtx !== null) return foundCtx;
+
         vm = vm.parent;
     }
 
