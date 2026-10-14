@@ -246,24 +246,6 @@
         return true;
     }
 
-    /**
-     * Sucht den scrollbaren Container der Auftragsliste (Virtual List).
-     * @returns {HTMLElement|null}
-     */
-    function getScrollContainer() {
-        const row = document.querySelector('.bb-vl-virtual-row, .bb-vl-item-wrapper');
-        if (!row) return null;
-        let el = row.parentElement;
-        while (el && el !== document.body) {
-            const style = window.getComputedStyle(el);
-            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-                return el;
-            }
-            el = el.parentElement;
-        }
-        return document.querySelector('.overflow-y-auto, .overflow-y-scroll');
-    }
-
     function isHandelszentrumOpen() {
         return !!document.querySelector(HANDELSZENTRUM_HEADER_SRC);
     }
@@ -429,11 +411,25 @@
                         processedKeys.add(key);
                         completedCount++;
                         actionTakenInThisPass = true;
-                        consecutiveNoActionCount = 0;
 
-                        // Kurze Pause zur Verarbeitung durch das Spiel & DOM-Update
-                        await new Promise(r => setTimeout(r, 400));
-                        break; // Virtual-List DOM neu erfassen
+                        // Warten, bis der Auftrag vom Server verarbeitet wurde und aus der Liste verschwindet
+                        const cardWrapper = card.closest('[data-vl-reveal-key]');
+                        const startWait = Date.now();
+                        while (Date.now() - startWait < 1800) {
+                            if (stopRequested) break;
+                            await new Promise(r => setTimeout(r, 100));
+                            // Prüfe, ob die Kachel noch im DOM ist
+                            if (cardWrapper && !document.body.contains(cardWrapper)) {
+                                break;
+                            }
+                            if (!document.body.contains(card)) {
+                                break;
+                            }
+                        }
+
+                        // Kurzer Moment für das Nachziehen der nächsten Kacheln
+                        await new Promise(r => setTimeout(r, 250));
+                        break; // Schleife neu starten mit frisch nachgerückten Kacheln
                     } else {
                         // Button ist ausgegraut (Ware oder Fahrzeuge fehlen)
                         console.log(`[LEF Auto Order] Überspringe ${logFullName} (1-Klick ausgegraut: Ware oder Fahrzeuge fehlen)`);
@@ -441,32 +437,10 @@
                     }
                 }
 
+                // Wenn im sichtbaren Bereich keine weiteren aktiven Aufträge mehr gefunden wurden
                 if (!actionTakenInThisPass && !stopRequested) {
-                    // Keine Aktion bei den aktuell sichtbaren Karten möglich.
-                    // Versuche, in der Liste nach unten zu scrollen, um weitere Aufträge nachzuladen.
-                    const scrollContainer = getScrollContainer();
-                    const canScroll = scrollContainer && (scrollContainer.scrollTop + scrollContainer.clientHeight < scrollContainer.scrollHeight - 20);
-
-                    if (canScroll) {
-                        scrollContainer.scrollTop += 350;
-                        scrollContainer.dispatchEvent(new Event('scroll'));
-                        await new Promise(r => setTimeout(r, 400));
-                    } else {
-                        consecutiveNoActionCount++;
-                        if (consecutiveNoActionCount >= 2) {
-                            // Am Ende der Liste angekommen
-                            break;
-                        }
-                        await new Promise(r => setTimeout(r, 300));
-                    }
+                    break;
                 }
-            }
-
-            // Nach Abschluss wieder nach oben scrollen
-            const scrollContainer = getScrollContainer();
-            if (scrollContainer) {
-                scrollContainer.scrollTop = 0;
-                scrollContainer.dispatchEvent(new Event('scroll'));
             }
 
             if (stopRequested) {

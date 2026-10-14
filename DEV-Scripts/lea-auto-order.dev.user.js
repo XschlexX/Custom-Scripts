@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         [DEV] LEA Auto Order Assistant
 // @namespace    lea-tools-dev
-// @version      1.0.1
+// @version      1.0.2
 // @match        https://game.logistics-empire.com/*
 // @run-at       document-idle
 // @grant        none
