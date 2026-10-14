@@ -2,9 +2,9 @@
 // @name         LEA Auto Order Assistant
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.18
+// @version      1.2.0
 // @match        https://game.logistics-empire.com/*
-// @description  Automatischer Assistent. On-Demand Ausführung über Button im Handelszentrum.
+// @description  Automatischer Assistent. 1-Klick Abarbeitung von Aufträgen im Handelszentrum.
 // @run-at       document-idle
 // @grant        none
 // @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.13
@@ -18,17 +18,14 @@
     // =========================================================================
     // KONFIGURATION & SELEKTOREN
     // =========================================================================
-    // maxOrderDeliveryTimeMinutes wird dynamisch aus LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes gelesen
 
     const ASSISTANT_BTN_SELECTOR = LEA_CONFIG.ASSISTANT_BTN_SELECTOR;
     const ALL_REWARDS_BTN_SELECTOR = LEA_CONFIG.ALL_REWARDS_BTN_SELECTOR;
     const HANDELSZENTRUM_HEADER_SRC = LEA_CONFIG.HANDELSZENTRUM_HEADER_SRC;
-    const FILTER_BAR_SELECTOR = LEA_CONFIG.FILTER_BAR_SELECTOR;
     const INJECT_BTN_ID = 'lef-auto-start-btn';
 
-    // Bild-Dateinamen für Buttons (können sich bei Spiel-Updates ändern)
-    const IMG_AUTO_SELECT = LEA_CONFIG.IMG_AUTO_SELECT;      // Frau-Icon (Automatisch wählen)
-    const IMG_CONTINUE = LEA_CONFIG.IMG_CONTINUE;            // Array von Bildnamen für Weiter/Starten
+    // Bild-Dateinamen für Buttons
+    const IMG_AUTO_SELECT = LEA_CONFIG.IMG_AUTO_SELECT; // 'auto_select'
 
     let isAutoRunning = false;
     let stopRequested = false;
@@ -154,7 +151,6 @@
 
         // 2. Reguläre Lieferzeit-Sperre prüfen
         if (result && result.seconds > LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes * 60) {
-            // Wenn wir diese Lieferzeitüberschreitung noch nicht gesperrt haben, starten wir den Timer
             if (!hasLockedThisWindow) {
                 hasLockedThisWindow = true;
                 lockUntilTime = Date.now() + 2000; // 2 Sekunden Sperre
@@ -163,51 +159,38 @@
 
             const remainingMs = lockUntilTime - Date.now();
             if (remainingMs > 0) {
-                // Sperre aktiv
                 enableTransportButtons(false);
                 const remainingSecs = (remainingMs / 1000).toFixed(1);
                 showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString}) - Knöpfe gesperrt (${remainingSecs}s)`);
             } else {
-                // Sperre abgelaufen
                 enableTransportButtons(true);
                 showTimeWarning(true, `Lieferzeit zu hoch! (${result.timeString})`);
             }
         } else {
-            // Lieferzeit ist in Ordnung
             enableTransportButtons(true);
             showTimeWarning(false);
         }
     }
 
+    // =========================================================================
+    // 1-KLICK AUFTRAGS-LOGIK & HELPER
+    // =========================================================================
+
     /**
      * Prüft, ob ein Auftrag anhand des Kundennamens übersprungen werden soll.
-     * @param {HTMLElement} btn - Der Start-Button des Auftrags.
+     * @param {HTMLElement} element - Die Auftragskachel oder ein Kind-Element.
      * @returns {boolean} True, wenn der Auftrag übersprungen werden soll.
      */
-    function shouldSkipOrder(btn) {
+    function shouldSkipOrder(element) {
         const excludeSetting = LEA_CONFIG.settings.excludeOrderNames;
         if (!excludeSetting) return false;
 
-        // Finde den Titel des Auftrags (Kundenname)
-        let parent = btn.parentElement;
-        let title = '';
-        let street = '';
-        while (parent && parent !== document.body) {
-            const titleEl = parent.querySelector('.text-h2, [class*="text-h2"]');
-            if (titleEl) {
-                const container = titleEl.closest('div');
-                if (container) {
-                    const titleSpan = container.querySelector('.text-h2, [class*="text-h2"]');
-                    const streetSpan = container.querySelector('.text-p2-400, .text-p2-700, [class*="text-p2"]');
-                    title = titleSpan ? titleSpan.textContent.trim() : titleEl.textContent.trim();
-                    street = streetSpan ? streetSpan.textContent.trim() : '';
-                } else {
-                    title = titleEl.textContent.trim();
-                }
-                break;
-            }
-            parent = parent.parentElement;
-        }
+        const card = element.closest('.bb-vl-item-slot-root, .panel, .bb-vl-item-wrapper') || element;
+        const titleEl = card.querySelector('.order-header .text-h2, .text-h2, [class*="text-h2"]');
+        const streetEl = card.querySelector('.order-header .text-p2-400, .text-p2-400, [class*="text-p2"]');
+
+        const title = titleEl ? titleEl.textContent.trim() : '';
+        const street = streetEl ? streetEl.textContent.trim() : '';
 
         if (!title) return false;
 
@@ -217,7 +200,7 @@
         for (const term of terms) {
             if (titleLower.includes(term)) {
                 const logName = street ? `${title} (${street})` : title;
-                console.log(`[LEF Auto Assistant] Überspringe Auftrag wegen Ausschlusskriterium "${term}": ${logName}`);
+                console.log(`[LEF Auto Order] Überspringe Auftrag wegen Ausschlusskriterium "${term}": ${logName}`);
                 return true;
             }
         }
@@ -225,76 +208,156 @@
     }
 
     /**
-     * Prüft im Produktauswahl-Fenster, ob unter "Angeforderte Waren" 
-     * eine Ware nicht vollständig ausgewählt ist (z. B. 0/281).
-     * @returns {boolean} True, wenn mindestens eine Ware unvollständig ist.
+     * Ermittelt einen eindeutigen Schlüssel für eine Auftragskachel,
+     * um Duplikate bei Virtual-Scrolling zuverlässig zu verhindern.
+     * @param {HTMLElement} card - Die Auftragskachel.
+     * @returns {string} Eindeutiger Auftragsschlüssel.
      */
-    function hasMissingGoods() {
-        const resourcesContainer = document.querySelector('[data-tutorial-id="transport-requested-resources"]');
-        if (!resourcesContainer) {
-            console.log('[LEF Auto Assistant] Container "transport-requested-resources" nicht gefunden.');
-            return false;
+    function getOrderKey(card) {
+        const wrapper = card.closest('[data-vl-reveal-key]');
+        if (wrapper && wrapper.getAttribute('data-vl-reveal-key')) {
+            return wrapper.getAttribute('data-vl-reveal-key');
         }
+        const title = card.querySelector('.order-header .text-h2, .text-h2')?.textContent.trim() || '';
+        const street = card.querySelector('.order-header .text-p2-400, .text-p2-400')?.textContent.trim() || '';
+        return `${title}|${street}`;
+    }
 
-        const amountLabels = resourcesContainer.querySelectorAll('.bb-amount-label');
-        if (amountLabels.length === 0) {
-            console.log('[LEF Auto Assistant] Keine bb-amount-label im Container gefunden.');
-            return false;
-        }
+    /**
+     * Sucht den 1-Klick-Button (Frau mit Helm / auto_select) auf der Auftragskachel.
+     * @param {HTMLElement} card - Die Auftragskachel.
+     * @returns {HTMLButtonElement|null} Der 1-Klick-Button oder null.
+     */
+    function get1ClickButton(card) {
+        const autoImg = card.querySelector('button img[data-key="regular/auto_select"], button img[src*="auto_select"]');
+        return autoImg ? autoImg.closest('button') : null;
+    }
 
-        function getNumberFromFlow(el) {
-            if (!el.shadowRoot) {
-                // Fallback falls kein Shadow DOM vorhanden ist
-                const text = el.textContent.trim().replace('/', '');
-                return parseInt(text, 10);
+    /**
+     * Prüft, ob der 1-Klick-Button klickbar ist (d. h. nicht disabled und kein grayscale).
+     * @param {HTMLButtonElement} btn - Der Button.
+     * @returns {boolean} True, wenn klickbar.
+     */
+    function is1ClickButtonEnabled(btn) {
+        if (!btn) return false;
+        if (btn.disabled || btn.hasAttribute('disabled')) return false;
+        const img = btn.querySelector('img');
+        if (img && img.classList.contains('grayscale')) return false;
+        return true;
+    }
+
+    /**
+     * Sucht den scrollbaren Container der Auftragsliste (Virtual List).
+     * @returns {HTMLElement|null}
+     */
+    function getScrollContainer() {
+        const row = document.querySelector('.bb-vl-virtual-row, .bb-vl-item-wrapper');
+        if (!row) return null;
+        let el = row.parentElement;
+        while (el && el !== document.body) {
+            const style = window.getComputedStyle(el);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+                return el;
             }
-            const activeDigits = Array.from(el.shadowRoot.querySelectorAll('.digit__num:not([inert])'));
-            const numberStr = activeDigits.map(d => d.textContent.trim()).join('');
-            return parseInt(numberStr, 10);
+            el = el.parentElement;
         }
-
-        for (const label of amountLabels) {
-            const flows = label.querySelectorAll('number-flow-vue');
-            if (flows.length >= 2) {
-                const current = getNumberFromFlow(flows[0]);
-                const target = getNumberFromFlow(flows[1]);
-
-                if (isNaN(current) || isNaN(target)) {
-                    console.log(`[LEF Auto Assistant] Fehler beim Parsen der Mengen (current: ${current}, target: ${target})`);
-                    continue;
-                }
-
-                if (current < target) {
-                    console.log(`[LEF Auto Assistant] Ware unvollständig: ${current} / ${target}`);
-                    return true; // Mindestens eine Ware ist unvollständig
-                }
-            }
-        }
-        return false;
+        return document.querySelector('.overflow-y-auto, .overflow-y-scroll');
     }
 
     function isHandelszentrumOpen() {
         return !!document.querySelector(HANDELSZENTRUM_HEADER_SRC);
     }
 
+    /**
+     * Prüft, ob der Filter "Anfragen" aktiv ist.
+     * @returns {boolean}
+     */
+    function isAnfragenActive() {
+        // 1. Anfragen-Button in der Filterbar prüfen (hat data-key="regular/trade_center_open_requests" und active="true")
+        const reqBtn = document.querySelector('.bb-filter-and-sort-bar img[data-key*="trade_center_open_requests"], .bb-filter-and-sort-bar img[src*="trade_center_open_requests"]')?.closest('button');
+        if (reqBtn && reqBtn.getAttribute('active') === 'true') {
+            return true;
+        }
+
+        // 2. Text unter der Filterleiste prüfen
+        const filterLabel = document.querySelector('.bb-filter-and-sort-bar .text-sm');
+        if (filterLabel && filterLabel.textContent.trim().toLowerCase() === 'anfragen') {
+            return true;
+        }
+
+        // 3. Fallback: Befinden sich Aufträge im DOM?
+        if (document.querySelector('[data-tutorial-id*="tradecenter.requests"], button img[src*="start_transport"]')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Stellt sicher, dass der "Anfragen" Reiter geöffnet ist.
+     * @returns {Promise<boolean>}
+     */
+    async function ensureAnfragenTab() {
+        if (isAnfragenActive()) return true;
+
+        const reqBtn = document.querySelector('.bb-filter-and-sort-bar img[data-key*="trade_center_open_requests"], .bb-filter-and-sort-bar img[src*="trade_center_open_requests"]')?.closest('button');
+        if (reqBtn) {
+            console.log('[LEF Auto Order] Wechsle zum Tab "Anfragen"...');
+            simulateClick(reqBtn);
+            await new Promise(r => setTimeout(r, 600));
+            return isAnfragenActive();
+        }
+
+        return false;
+    }
+
+    /**
+     * Holt fertige Belohnungen ab ("Alle sammeln"), falls vorhanden.
+     * WICHTIG: Niemals Elemente innerhalb von #headerBar anklicken!
+     */
+    async function collectAllRewards() {
+        // Suche nach dem Text "Alle sammeln" strikt außerhalb von #headerBar
+        const allTextElements = Array.from(document.querySelectorAll('div, span, p'))
+            .filter(el => !el.closest('#headerBar'));
+
+        const label = allTextElements.find(el => el.children.length === 0 && el.textContent.trim().toLowerCase() === 'alle sammeln');
+        if (!label) {
+            console.log('[LEF Auto Order] Keine ausstehenden Belohnungen ("Alle sammeln" nicht sichtbar).');
+            return;
+        }
+
+        // Der "Alle sammeln" Button befindet sich in der gleichen Zeile/Spalte unter dem Label
+        const parentRow = label.closest('.flex, div');
+        const candidateBtns = Array.from(parentRow?.parentElement?.querySelectorAll('button') || parentRow?.querySelectorAll('button') || [])
+            .filter(b => !b.closest('#headerBar') && !b.closest('.bb-filter-and-sort-bar'));
+
+        const btn = candidateBtns[0];
+        if (btn && !btn.disabled && !btn.hasAttribute('disabled')) {
+            console.log('[LEF Auto Order] Belohnungen vorhanden -> Klicke auf "Alle sammeln":', btn.outerHTML.slice(0, 100));
+            simulateClick(btn);
+            await new Promise(r => setTimeout(r, 800));
+        } else {
+            console.log('[LEF Auto Order] Kein aktiver "Alle sammeln"-Button gefunden.');
+        }
+    }
 
     // =========================================================================
-    // HAUPT-LOGIK (ASYNC FLOW)
+    // HAUPT-LOGIK (1-KLICK ASYNC FLOW)
     // =========================================================================
 
     async function executeAutoStart() {
         if (isAutoRunning) {
-            console.log('[LEF Auto Assistant] Stop angefordert vom Benutzer!');
+            console.log('[LEF Auto Order] Stop angefordert vom Benutzer!');
             showToast('Auto-Ablauf wird abgebrochen...');
             stopRequested = true;
             return;
         }
 
-        // 1. Prüfen, ob der "Anfragen" (Klemmbrett) Filter aktiv ist
-        const anfragenTab = document.querySelector('button[aria-label="Anfragen"]');
-        if (!anfragenTab || anfragenTab.getAttribute('active') !== 'true') {
+        // 1. Prüfen und ggf. zum Tab "Anfragen" wechseln
+        const isOnAnfragen = await ensureAnfragenTab();
+        if (!isOnAnfragen) {
             showToast('Bitte wähle zuerst den Filter "Anfragen" aus!');
-            return; // Skript bricht hier ab, falls der falsche Filter aktiv ist
+            return;
         }
 
         isAutoRunning = true;
@@ -302,210 +365,127 @@
         updateAutoStartButtonState(true);
 
         try {
-            console.log('[LEF Auto Assistant] Starte manuellen Auto-Ablauf...');
+            console.log('[LEF Auto Order] Starte 1-Klick Auftragsbearbeitung...');
 
-            // 2. Belohnungen einsammeln ("Alle sammeln")
-            const allCollectBtn = document.querySelector(ALL_REWARDS_BTN_SELECTOR)?.closest('button');
-            if (allCollectBtn && allCollectBtn.offsetParent !== null && !allCollectBtn.hasAttribute('disabled')) {
-                console.log('[LEF Auto Assistant] Klicke auf Alle sammeln...');
-                allCollectBtn.click();
-                await new Promise(r => setTimeout(r, 1000)); // Kurz warten, bis Server antwortet
-            }
+            // 2. Belohnungen einsammeln ("Alle sammeln", nur außerhalb der Filterleiste)
+            await collectAllRewards();
 
-            // 3. Aufträge/Anfragen abarbeiten
-            let hasMoreOrders = true;
-            let skipIndex = 0;
+            const processedKeys = new Set();
+            const skippedKeys = new Set();
+            let completedCount = 0;
+            let consecutiveNoActionCount = 0;
+            let premiumButtonChecked = false;
 
-            while (hasMoreOrders && !stopRequested) {
-                // Wir warten kurz, falls die Liste nach dem letzten Auftrag neu geladen wird
-                let nextOrderBtn = null;
-                for (let retry = 0; retry < 10; retry++) { // Bis zu 5 Sekunden warten!
-                    if (stopRequested) break;
+            while (!stopRequested) {
+                // Alle aktuell im DOM sichtbaren Auftragskarten suchen
+                const cards = Array.from(document.querySelectorAll('.bb-vl-item-slot-root, .panel[data-tutorial-id*="tradecenter"]'))
+                    .filter(el => el.querySelector('img[src*="auto_select"], img[src*="start_transport"]'));
 
-                    // Wir suchen explizit nach den Buttons, die das "start_transport" Icon enthalten!
-                    // Das ist die sicherste Methode, da das Bild eindeutig ist.
-                    const availableBtns = Array.from(document.querySelectorAll('button img[src*="start_transport"]'))
-                        .map(img => img.closest('button'))
-                        .filter(btn => btn && !btn.hasAttribute('disabled'));
-
-                    // Wir nehmen den Button an der Position skipIndex. 
-                    if (availableBtns.length > skipIndex) {
-                        nextOrderBtn = availableBtns[skipIndex];
+                // Erste Prüfung: Gibt es überhaupt 1-Klick-Buttons?
+                if (!premiumButtonChecked && cards.length > 0) {
+                    premiumButtonChecked = true;
+                    const hasAny1ClickBtn = cards.some(c => get1ClickButton(c));
+                    if (!hasAny1ClickBtn) {
+                        console.warn('[LEF Auto Order] Kein 1-Klick-Button (Frau mit Helm) gefunden. Premium-Funktion aktiv?');
+                        showToast('Keine 1-Klick-Buttons gefunden (nur für Premium-Nutzer).');
                         break;
                     }
-                    await new Promise(r => setTimeout(r, 500));
                 }
 
-                if (!nextOrderBtn || stopRequested) {
-                    // Keine weiteren offenen Aufträge gefunden oder Stop
-                    hasMoreOrders = false;
-                    break;
-                }
+                let actionTakenInThisPass = false;
 
-                // Prüfung auf Ausschlusskriterien für Aufträge
-                if (shouldSkipOrder(nextOrderBtn)) {
-                    skipIndex++;
-                    continue;
-                }
+                for (const card of cards) {
+                    if (stopRequested) break;
 
-                console.log('[LEF Auto Assistant] Auftrag gefunden, betrete Auftrag (Klick auf Klemmbrett)...');
-                nextOrderBtn.click();
-
-                // Dynamisch warten, bis das Assistent-Fenster überhaupt offen ist
-                await waitForElementToAppear(ASSISTANT_BTN_SELECTOR, 3000);
-
-                let orderFinished = false;
-                let stepCounter = 0;
-                let abortOrder = false;
-
-                while (!orderFinished && !abortOrder && stepCounter < 50 && !stopRequested) {
-                    stepCounter++;
-                    await new Promise(r => setTimeout(r, 50)); // Nur 50ms statt 500ms
-
-                    // Suchen wir den Assistenten-Button (Frau oder Doppelpfeil)
-                    const allBtns = Array.from(document.querySelectorAll(ASSISTANT_BTN_SELECTOR));
-                    const currentBtn = allBtns.find(b => b.closest('.bottom-navigation') || b.closest('.bb-dialog'));
-
-                    if (!currentBtn) {
-                        // Wenn der Button weg ist, checken ob das Overlay zu ist
-                        const hasOverlay = document.querySelector('.bottom-navigation');
-                        if (!hasOverlay && stepCounter > 4) {
-                            orderFinished = true; // Wir sind wieder im Hauptmenü
-                        }
+                    const key = getOrderKey(card);
+                    if (!key || processedKeys.has(key) || skippedKeys.has(key)) {
                         continue;
                     }
 
-                    const src = currentBtn.querySelector('img')?.getAttribute('src') || '';
-                    const pageText = document.body.textContent || '';
-                    const isVehicleWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität/);
+                    // Kundenausschluss prüfen
+                    if (shouldSkipOrder(card)) {
+                        skippedKeys.add(key);
+                        continue;
+                    }
 
-                    const continueSelector = IMG_CONTINUE.map(img => `${ASSISTANT_BTN_SELECTOR} img[src*="${img}"]`).join(', ');
-                    if (!isVehicleWindow) {
-                        // Phase 1: Produktauswahl (Angeforderte Waren)
-                        if (src.includes(IMG_AUTO_SELECT)) {
-                            console.log('[LEF Auto Assistant] Produktauswahl: Klicke Frau (Produkte automatisch wählen)...');
-                            currentBtn.click();
-                            // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear(continueSelector, 2000);
+                    const autoBtn = get1ClickButton(card);
+                    if (!autoBtn) {
+                        skippedKeys.add(key);
+                        continue;
+                    }
 
-                            // Prüfung auf unvollständige Waren
-                            if (hasMissingGoods()) {
-                                console.warn('[LEF Auto Assistant] Waren unvollständig! Breche ab...');
-                                showToast('Waren unvollständig! Übersprungen.');
-                                abortOrder = true;
-                                break;
-                            }
-                        } else if (IMG_CONTINUE.some(img => src.includes(img))) {
-                            if (hasMissingGoods()) {
-                                console.warn('[LEF Auto Assistant] Waren unvollständig! Breche ab...');
-                                showToast('Waren unvollständig! Übersprungen.');
-                                abortOrder = true;
-                                break;
-                            }
-                            console.log('[LEF Auto Assistant] Produktauswahl: Klicke Doppelpfeil (Weiter zur Fahrzeugauswahl)...');
-                            currentBtn.click();
-                            // Dynamisch warten, bis Frau im neuen Fenster erscheint
-                            await waitForElementToAppear(`${ASSISTANT_BTN_SELECTOR} img[src*="${IMG_AUTO_SELECT}"]`, 2000);
-                        }
+                    const titleEl = card.querySelector('.order-header .text-h2, .text-h2');
+                    const streetEl = card.querySelector('.order-header .text-p2-400, .text-p2-400');
+                    const orderName = titleEl ? titleEl.textContent.trim() : 'Auftrag';
+                    const streetName = streetEl ? streetEl.textContent.trim() : '';
+                    const logFullName = streetName ? `${orderName} (${streetName})` : orderName;
+
+                    if (is1ClickButtonEnabled(autoBtn)) {
+                        console.log(`[LEF Auto Order] Starte 1-Klick für: ${logFullName}`);
+
+                        simulateClick(autoBtn);
+                        try { autoBtn.click(); } catch (_) {}
+
+                        processedKeys.add(key);
+                        completedCount++;
+                        actionTakenInThisPass = true;
+                        consecutiveNoActionCount = 0;
+
+                        // Kurze Pause zur Verarbeitung durch das Spiel & DOM-Update
+                        await new Promise(r => setTimeout(r, 400));
+                        break; // Virtual-List DOM neu erfassen
                     } else {
-                        // Phase 2: Fahrzeugauswahl
-                        if (src.includes(IMG_AUTO_SELECT)) {
-                            console.log('[LEF Auto Assistant] Fahrzeugauswahl: Klicke Frau (Fahrzeug automatisch wählen)...');
-                            currentBtn.click();
-                            // Dynamisch warten, bis Doppelpfeil erscheint
-                            await waitForElementToAppear(continueSelector, 2000);
-                        } else if (IMG_CONTINUE.some(img => src.includes(img))) {
-                            // Zeit dynamisch abfragen statt fix zu warten
-                            let result = getDeliveryTimeSeconds();
-                            let waitTime = 0;
-                            while (!result && waitTime < 2000) {
-                                await new Promise(r => setTimeout(r, 50));
-                                waitTime += 50;
-                                result = getDeliveryTimeSeconds();
-                            }
-
-                            if (!result) {
-                                continue; // Warte weiter im Haupt-Loop
-                            }
-
-                            if (result.seconds > LEA_CONFIG.settings.maxOrderDeliveryTimeMinutes * 60) {
-                                console.warn(`[LEF Auto Assistant] Lieferzeit zu lang (${result.timeString}). Breche ab und gehe zurück!`);
-                                abortOrder = true;
-                                break;
-                            } else {
-                                console.log('[LEF Auto Assistant] Lieferzeit OK. Klicke Doppelpfeil (Starten)!');
-                                currentBtn.click();
-
-                                // Warten, bis das Fenster komplett schließt
-                                await waitForElementToDisappear(ASSISTANT_BTN_SELECTOR, 3000);
-                                orderFinished = true;
-                                break;
-                            }
-                        }
+                        // Button ist ausgegraut (Ware oder Fahrzeuge fehlen)
+                        console.log(`[LEF Auto Order] Überspringe ${logFullName} (1-Klick ausgegraut: Ware oder Fahrzeuge fehlen)`);
+                        skippedKeys.add(key);
                     }
                 }
 
-                if (abortOrder || !orderFinished) {
-                    if (!abortOrder) console.warn('[LEF Auto Assistant] Timeout im Auftrag. Breche ab...');
-                    skipIndex++; // Diesen Auftrag nächstes Mal überspringen
-                    await closeVehicleWindow();
+                if (!actionTakenInThisPass && !stopRequested) {
+                    // Keine Aktion bei den aktuell sichtbaren Karten möglich.
+                    // Versuche, in der Liste nach unten zu scrollen, um weitere Aufträge nachzuladen.
+                    const scrollContainer = getScrollContainer();
+                    const canScroll = scrollContainer && (scrollContainer.scrollTop + scrollContainer.clientHeight < scrollContainer.scrollHeight - 20);
+
+                    if (canScroll) {
+                        scrollContainer.scrollTop += 350;
+                        scrollContainer.dispatchEvent(new Event('scroll'));
+                        await new Promise(r => setTimeout(r, 400));
+                    } else {
+                        consecutiveNoActionCount++;
+                        if (consecutiveNoActionCount >= 2) {
+                            // Am Ende der Liste angekommen
+                            break;
+                        }
+                        await new Promise(r => setTimeout(r, 300));
+                    }
                 }
             }
 
+            // Nach Abschluss wieder nach oben scrollen
+            const scrollContainer = getScrollContainer();
+            if (scrollContainer) {
+                scrollContainer.scrollTop = 0;
+                scrollContainer.dispatchEvent(new Event('scroll'));
+            }
+
             if (stopRequested) {
-                console.log('[LEF Auto Assistant] Ablauf durch Benutzer gestoppt.');
+                console.log('[LEF Auto Order] Ablauf durch Benutzer gestoppt.');
                 showToast('Auto-Ablauf gestoppt.');
             } else {
-                console.log('[LEF Auto Assistant] Ablauf beendet.');
-                showToast('Alle Aufträge erledigt.');
+                console.log(`[LEF Auto Order] Fertig! ${completedCount} Aufträge gestartet, ${skippedKeys.size} übersprungen.`);
+                showToast(`Fertig: ${completedCount} Aufträge erledigt (${skippedKeys.size} übersprungen).`);
             }
 
         } catch (e) {
-            console.error('[LEF Auto Assistant] Fehler im Ablauf:', e);
+            console.error('[LEF Auto Order] Fehler im Ablauf:', e);
+            showToast('Fehler bei der Auftragsbearbeitung!');
         } finally {
             isAutoRunning = false;
             stopRequested = false;
             updateAutoStartButtonState(false);
         }
     }
-
-    async function closeVehicleWindow() {
-        console.log('[LEF Auto Assistant] Schließe offene Unterfenster...');
-
-        for (let i = 0; i < 4; i++) {
-            // Prüfen, ob wir noch in einem der Unterfenster sind
-            const pageText = document.body.textContent || '';
-            const isSubWindow = pageText.match(/Transportkosten|Ausgewählte Kapazität|Angeforderte Waren|Waren im Lager/);
-            const hasAssistantBtn = !!document.querySelector('button[data-tutorial-id="transport-assistant"]');
-
-            if (!isSubWindow && !hasAssistantBtn) {
-                break; // Wir sind wieder im Hauptfenster
-            }
-
-            // Zurück-Button finden (Prio 1: spezieller Zurück-Button, Prio 2: erster Button unten)
-            let closeBtn = document.querySelector('.bottom-navigation button.variant--nav');
-            if (!closeBtn) {
-                closeBtn = document.querySelector('.bottom-navigation button:first-child');
-            }
-            if (!closeBtn) {
-                const btns = Array.from(document.querySelectorAll('button'));
-                closeBtn = btns.find(b => {
-                    const txt = (b.textContent || '').toLowerCase();
-                    return txt.includes('schließen') || txt.includes('zurück');
-                });
-            }
-
-            if (closeBtn) {
-                console.log(`[LEF Auto Assistant] Klicke Zurück-Button (Schritt ${i + 1})...`);
-                closeBtn.click();
-                await new Promise(r => setTimeout(r, 600)); // Warte kurz auf die Schließen-Animation
-            } else {
-                console.warn('[LEF Auto Assistant] Keinen Zurück/Schließen-Button gefunden!');
-                break;
-            }
-        }
-    }
-
 
     // =========================================================================
     // UI: AUTO-START BUTTON (HANDELSZENTRUM) & FLOATING STOP
@@ -528,7 +508,7 @@
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[LEF Auto Assistant] Stop angefordert über Floating Button!');
+                console.log('[LEF Auto Order] Stop angefordert über Floating Button!');
                 showToast('Auto-Ablauf wird abgebrochen...');
                 stopRequested = true;
                 btn.textContent = 'Stoppt...';
@@ -553,7 +533,6 @@
             }
         }
 
-        // Auch den global schwebenden Button aktualisieren
         updateFloatingStopButton(running);
     }
 
@@ -568,7 +547,6 @@
         const headerContainer = document.querySelector('img[src*="page_header_orders-"]')?.closest('.flex.flex-nowrap.items-center')?.querySelector('.gap-md.flex');
         if (!headerContainer) return;
 
-        // Erstelle den Button im gleichen Stil wie im Upgrade-Skript
         const btn = document.createElement('button');
         btn.id = INJECT_BTN_ID;
         btn.type = 'button';
@@ -576,14 +554,13 @@
         if (isAutoRunning) {
             btn.classList.add('lea-btn-running');
         }
-        btn.title = 'Startet/Stoppt die automatische Auftragsbearbeitung';
+        btn.title = 'Startet/Stoppt die automatische 1-Klick Auftragsbearbeitung';
 
         const inner = document.createElement('div');
         inner.className = 'relative flex size-full items-center justify-center lea-injected-btn-inner';
         inner.innerHTML = isAutoRunning ? 'STOP' : 'Auto<br>Order';
         btn.appendChild(inner);
 
-        // Klick auf den Button startet oder stoppt den Async-Ablauf
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -591,8 +568,6 @@
         });
 
         headerContainer.appendChild(btn);
-
-        // Initiale Beschriftung setzen
         updateAutoStartButtonState(isAutoRunning);
     }
 
@@ -601,17 +576,11 @@
     // =========================================================================
 
     function init() {
-        console.log('[LEF Auto Assistant] Initialisiert v1.1.9 (On-Demand Async Flow)');
-
-        // Den alten Schalter und Menü-Reste vom alten Skript entfernen, falls das Skript ohne Neuladen überschrieben wurde
-        const oldBtn = document.getElementById('lef-toggle-btn');
-        if (oldBtn) oldBtn.remove();
-        const oldAnfragenBtn = document.getElementById('lef-anfragen-custom-btn');
-        if (oldAnfragenBtn) oldAnfragenBtn.remove();
+        console.log('[LEF Auto Order] Initialisiert v1.2.0 (1-Klick Premium Flow)');
 
         injectAutoStartButton();
 
-        // Klick-Listener für präemptive Sperre bei Klick auf automatische Fahrzeugauswahl (Capture-Phase)
+        // Klick-Listener für präemptive Sperre bei Klick auf automatische Fahrzeugauswahl im manuellen Modus
         document.addEventListener('click', (e) => {
             if (isAutoRunning) return;
             const btn = e.target.closest(ASSISTANT_BTN_SELECTOR);
@@ -628,7 +597,7 @@
             }
         }, true);
 
-        // Passive Überprüfung der Lieferzeit für manuelles Spielen (performant via Intervall)
+        // Passive Überprüfung der Lieferzeit für manuelles Spielen
         setInterval(passiveCheckDeliveryTime, 200);
 
         let isHandlingMutations = false;
@@ -636,9 +605,7 @@
             if (!isHandlingMutations) {
                 isHandlingMutations = true;
                 requestAnimationFrame(() => {
-                    // Button reinwerfen, falls wir im Handelszentrum sind
                     injectAutoStartButton();
-
                     isHandlingMutations = false;
                 });
             }

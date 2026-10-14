@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         [DEV] LEA Auto Order Assistant
 // @namespace    lea-tools-dev
-// @version      1.0.0
+// @version      1.0.1
 // @match        https://game.logistics-empire.com/*
 // @run-at       document-idle
 // @grant        none
 // @require      file:///d:/Clouds/OneDrive/Apps/Tampermonkey/Logistics-Empire-Scripts/lea-shared-helpers.js
-// @require      file:///d:/Clouds/OneDrive/Apps/Tampermonkey/Logistics-Empire-Scripts/lea-auto-order.user.js
+// @require      file:///d:/Clouds/OneDrive/Apps/Tampermonkey/Logistics-Empire-Scripts/lea-auto-order.user.js?v=1.2.0
 // ==/UserScript==
