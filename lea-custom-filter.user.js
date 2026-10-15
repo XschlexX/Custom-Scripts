@@ -2,12 +2,12 @@
 // @name         LEA Custom Filter
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.1.3
+// @version      1.2.0
 // @match        https://game.logistics-empire.com/*
 // @description  Fügt einen Filter in der Gebäudeübersicht hinzu, um nur Gebäude mit gestoppter Produktionslinie anzuzeigen.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.13
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.25
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-custom-filter.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-custom-filter.user.js
 // ==/UserScript==
@@ -22,6 +22,7 @@
     const INJECT_BTN_ID = 'lea-custom-stop-filter-btn';
     const AF_BTN_ID = 'lea-filter-af-btn';
     const LS_BTN_ID = 'lea-filter-ls-btn';
+    const CF_BTN_ID = 'lea-filter-cf-btn';
     const NEXT_BTN_ID = 'lea-custom-next-btn';
     const BUILDING_CARD_SELECTOR = '.building-card';
     const STOP_ICON_SELECTOR = 'img[src*="icon_blocked"]';
@@ -38,6 +39,16 @@
     let lastMatchScrollTop = null; // scrollTop-Wert, bei dem der letzte Treffer oben lag
     let lastMatchHeight = 200;  // Höhe des letzten Treffer-Gebäudes (Schätzwert als Fallback)
 
+    // Hilfsfunktion: Alle injizierten Such-Buttons entfernen
+    function removeSearchButtons() {
+        const afBtn = document.getElementById(AF_BTN_ID);
+        if (afBtn) afBtn.remove();
+        const lsBtn = document.getElementById(LS_BTN_ID);
+        if (lsBtn) lsBtn.remove();
+        const cfBtn = document.getElementById(CF_BTN_ID);
+        if (cfBtn) cfBtn.remove();
+    }
+
     // -----------------------------------------------------------------------
     // GLOBALER KLICK-LISTENER (für Dropdown)
     // -----------------------------------------------------------------------
@@ -47,10 +58,7 @@
             const container = document.getElementById(INJECT_BTN_ID);
             if (container) {
                 container.remove();
-                const afBtn = document.getElementById(AF_BTN_ID);
-                if (afBtn) afBtn.remove();
-                const lsBtn = document.getElementById(LS_BTN_ID);
-                if (lsBtn) lsBtn.remove();
+                removeSearchButtons();
                 injectFilterButtons();
             }
         }
@@ -269,7 +277,9 @@
         btn.id = id;
         btn.type = 'button';
         
-        btn.title = `Suche nach ${prefix} (${labelText}) filtern/zurücksetzen`;
+        btn.title = prefix 
+            ? `Suche nach ${prefix} (${labelText}) filtern/zurücksetzen`
+            : `Filter (${labelText}) - In den Einstellungen konfigurieren`;
         btn.className = 'bb-base-button size--md shape--square theme--light lea-injected-btn';
 
         const inner = document.createElement('div');
@@ -279,8 +289,24 @@
 
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            let currentPrefix = prefix;
+            if (id === CF_BTN_ID) {
+                currentPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.customFilterPrefix) || '';
+            } else if (id === LS_BTN_ID) {
+                currentPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(LS)';
+            } else if (id === AF_BTN_ID) {
+                currentPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
+            }
+
+            if (!currentPrefix) {
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ Bitte zuerst einen Custom-Prefix in den Einstellungen eintragen!');
+                }
+                return;
+            }
+
             if (typeof toggleSearchFilter === 'function') {
-                await toggleSearchFilter(prefix);
+                await toggleSearchFilter(currentPrefix);
                 updateFilterButtonsState();
             } else {
                 console.error('[LEA Custom Filter] toggleSearchFilter nicht definiert!');
@@ -315,6 +341,7 @@
         // Präfixe aus LEA_CONFIG laden
         const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
         const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(LS)';
+        const cfPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.customFilterPrefix) || '';
 
         // 1. Custom Button Zustand
         const customBtn = document.querySelector(`#${INJECT_BTN_ID} button`);
@@ -348,7 +375,7 @@
             }
         }
 
-        // 3. AF Button Zustand (Supply - Rechts)
+        // 3. AF Button Zustand (Supply - Mitte)
         const afBtn = document.getElementById(AF_BTN_ID);
         if (afBtn) {
             const inner = afBtn.querySelector('.lea-injected-btn-inner');
@@ -362,6 +389,21 @@
                 if (inner) inner.classList.remove('lea-filter-btn-inner-active');
             }
         }
+
+        // 4. CF Button Zustand (Custom Filter - Rechts)
+        const cfBtn = document.getElementById(CF_BTN_ID);
+        if (cfBtn) {
+            const inner = cfBtn.querySelector('.lea-injected-btn-inner');
+            if (cfPrefix && activePrefix.toUpperCase().includes(cfPrefix.toUpperCase())) {
+                cfBtn.classList.remove('variant--neutral');
+                cfBtn.classList.add('variant--normal', 'lea-filter-btn-active');
+                if (inner) inner.classList.add('lea-filter-btn-inner-active');
+            } else {
+                cfBtn.classList.remove('variant--normal', 'lea-filter-btn-active');
+                cfBtn.classList.add('variant--neutral');
+                if (inner) inner.classList.remove('lea-filter-btn-inner-active');
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -371,10 +413,7 @@
         if (!isBuildingOverviewOpen()) {
             const existing = document.getElementById(INJECT_BTN_ID);
             if (existing) existing.remove();
-            const afBtn = document.getElementById(AF_BTN_ID);
-            if (afBtn) afBtn.remove();
-            const lsBtn = document.getElementById(LS_BTN_ID);
-            if (lsBtn) lsBtn.remove();
+            removeSearchButtons();
             return;
         }
 
@@ -460,10 +499,7 @@
                 if (activeFilters.paused) startAutoScroll(); else stopAutoScroll();
                 isDropdownOpen = false;
                 container.remove();
-                const afBtn = document.getElementById(AF_BTN_ID);
-                if (afBtn) afBtn.remove();
-                const lsBtn = document.getElementById(LS_BTN_ID);
-                if (lsBtn) lsBtn.remove();
+                removeSearchButtons();
                 injectFilterButtons();
             });
             dropdownContent.appendChild(itemStop);
@@ -478,10 +514,7 @@
                 if (activeFilters.fusion) startAutoScroll(); else stopAutoScroll();
                 isDropdownOpen = false;
                 container.remove();
-                const afBtn = document.getElementById(AF_BTN_ID);
-                if (afBtn) afBtn.remove();
-                const lsBtn = document.getElementById(LS_BTN_ID);
-                if (lsBtn) lsBtn.remove();
+                removeSearchButtons();
                 injectFilterButtons();
             });
             dropdownContent.appendChild(itemFusion);
@@ -495,10 +528,7 @@
                 isDropdownOpen = !isDropdownOpen;
                 // Container neu laden für frisches Styling
                 container.remove();
-                const afBtn = document.getElementById(AF_BTN_ID);
-                if (afBtn) afBtn.remove();
-                const lsBtn = document.getElementById(LS_BTN_ID);
-                if (lsBtn) lsBtn.remove();
+                removeSearchButtons();
                 injectFilterButtons();
             });
 
@@ -508,16 +538,24 @@
 
         // --- 2. LS Button (Storage - Links) ---
         if (!document.getElementById(LS_BTN_ID)) {
-            const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(MS)';
+            const lsPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.storagePrefix) || '(LS)';
             const lsBtn = createSearchFilterButton(LS_BTN_ID, lsPrefix, '📦', 'Storage');
             buildingTypeDiv.appendChild(lsBtn);
         }
 
-        // --- 3. AF Button (Supply - Rechts) ---
+        // --- 3. AF Button (Supply - Mitte) ---
         if (!document.getElementById(AF_BTN_ID)) {
             const afPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.buildingPrefix) || '(AF)';
             const afBtn = createSearchFilterButton(AF_BTN_ID, afPrefix, '🏭', 'Supply');
             buildingTypeDiv.appendChild(afBtn);
+        }
+
+        // --- 4. CF Button (Custom Filter - Rechts) ---
+        if (!document.getElementById(CF_BTN_ID)) {
+            const cfPrefix = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.customFilterPrefix) || '';
+            const cfLabel = (window.LEA_CONFIG && window.LEA_CONFIG.settings && window.LEA_CONFIG.settings.customFilterLabel) || 'Custom';
+            const cfBtn = createSearchFilterButton(CF_BTN_ID, cfPrefix, '🏷️', cfLabel);
+            buildingTypeDiv.appendChild(cfBtn);
         }
 
         // Zustände aktualisieren
@@ -528,7 +566,7 @@
     // INIT & OBSERVER
     // -----------------------------------------------------------------------
     function init() {
-        console.log('[LEA Custom Filter] Initialisiert v1.1.3 (Filter-Buttons)');
+        console.log('[LEA Custom Filter] Initialisiert v1.2.0 (Filter-Buttons)');
 
         injectFilterButtons();
         applyFilter();
@@ -553,10 +591,7 @@
 
         // Event-Listener für live Einstellungsänderungen
         document.addEventListener('lea-settings-changed', () => {
-            const afBtn = document.getElementById(AF_BTN_ID);
-            if (afBtn) afBtn.remove();
-            const lsBtn = document.getElementById(LS_BTN_ID);
-            if (lsBtn) lsBtn.remove();
+            removeSearchButtons();
             injectFilterButtons();
         });
     }

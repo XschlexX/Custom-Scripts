@@ -2,12 +2,12 @@
 // @name         LEA Settings
 // @namespace    lea-tools
 // @author       DonSanchos
-// @version      1.0.11
+// @version      1.0.12
 // @match        https://game.logistics-empire.com/*
 // @description  Zentrales Einstellungs-Modal für alle LEA Skripte.
 // @run-at       document-idle
 // @grant        none
-// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.15
+// @require      https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-shared-helpers.js?v=1.0.25
 // @updateURL    https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // @downloadURL  https://raw.githubusercontent.com/XschlexX/Custom-Scripts/main/lea-settings.user.js
 // ==/UserScript==
@@ -151,6 +151,28 @@
         });
         panels.general.appendChild(storagePrefixRow.row);
         inputs.storagePrefix = storagePrefixRow.input;
+
+        // Setting: Custom-Prefix
+        const customPrefixRow = createSettingRow({
+            icon: '🏷️',
+            label: 'Custom-Prefix',
+            type: 'text',
+            value: LEA_CONFIG.settings.customFilterPrefix || '',
+            placeholder: '(CF)'
+        });
+        panels.general.appendChild(customPrefixRow.row);
+        inputs.customFilterPrefix = customPrefixRow.input;
+
+        // Setting: Custom-Label
+        const customLabelRow = createSettingRow({
+            icon: '✏️',
+            label: 'Custom-Label',
+            type: 'text',
+            value: LEA_CONFIG.settings.customFilterLabel || '',
+            placeholder: 'Custom'
+        });
+        panels.general.appendChild(customLabelRow.row);
+        inputs.customFilterLabel = customLabelRow.input;
 
         // --- TAB 2: Refill & Transport ---
         // Setting: Min. freie Kapazität (%)
@@ -302,6 +324,8 @@
         const settings = {
             buildingPrefix: inputs.buildingPrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.buildingPrefix,
             storagePrefix: inputs.storagePrefix.value.trim() || LEA_CONFIG.SETTINGS_DEFAULTS.storagePrefix,
+            customFilterPrefix: inputs.customFilterPrefix.value.trim(),
+            customFilterLabel: inputs.customFilterLabel.value.trim() || (LEA_CONFIG.SETTINGS_DEFAULTS && LEA_CONFIG.SETTINGS_DEFAULTS.customFilterLabel) || 'Custom',
             minEmptyPercentage: parseInt(inputs.minEmptyPercentage.value) || LEA_CONFIG.SETTINGS_DEFAULTS.minEmptyPercentage,
             maxOrderDeliveryTimeMinutes: parseInt(inputs.maxOrderDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxOrderDeliveryTimeMinutes,
             maxSupplyDeliveryTimeMinutes: parseInt(inputs.maxSupplyDeliveryTimeMinutes.value) || LEA_CONFIG.SETTINGS_DEFAULTS.maxSupplyDeliveryTimeMinutes,

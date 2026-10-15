@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LEA Shared Helpers
 // @namespace    lea-tools
-// @version      1.0.24
+// @version      1.0.25
 // @description  Gemeinsame Hilfsfunktionen und Konstanten für LEA Assistant Skripte.
 // @author       DonSanchos
 // @match        https://game.logistics-empire.com/*
@@ -39,6 +39,8 @@ if (typeof window.LEA_CONFIG === 'undefined') {
     window.LEA_CONFIG.SETTINGS_DEFAULTS = {
         buildingPrefix: '(AF)',
         storagePrefix: '(LS)',
+        customFilterPrefix: '',
+        customFilterLabel: 'Custom',
         minEmptyPercentage: 30,
         maxOrderDeliveryTimeMinutes: 15,
         maxSupplyDeliveryTimeMinutes: 15,
